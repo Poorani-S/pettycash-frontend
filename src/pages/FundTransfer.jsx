@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import axios from "../utils/axios";
 import Layout from "../components/Layout";
+import { toast } from "react-toastify";
 
 const FundTransfer = () => {
   const [transferType, setTransferType] = useState("bank");
@@ -28,6 +29,11 @@ const FundTransfer = () => {
   const [selectedClientDetails, setSelectedClientDetails] = useState(null);
   const [showAddClientModal, setShowAddClientModal] = useState(false);
   const [newClientLoading, setNewClientLoading] = useState(false);
+  const [confirmModal, setConfirmModal] = useState({
+    show: false,
+    action: null,
+    message: "",
+  });
   const [newClient, setNewClient] = useState({
     name: "",
     email: "",
@@ -131,7 +137,7 @@ const FundTransfer = () => {
         setAccountNumber(addedClient.bankDetails.accountNumber || "");
       }
     } catch (err) {
-      alert(err.response?.data?.message || "Failed to add client");
+      toast.error(err.response?.data?.message || "Failed to add client");
     } finally {
       setNewClientLoading(false);
     }
@@ -214,27 +220,26 @@ const FundTransfer = () => {
   };
 
   const handleClearHistory = async () => {
-    if (
-      !window.confirm(
+    setConfirmModal({
+      show: true,
+      action: "clearHistory",
+      message:
         "Are you sure you want to clear all fund transfer history? This action cannot be undone.",
-      )
-    ) {
-      return;
-    }
+    });
+  };
 
+  const executeClearHistory = async () => {
     try {
       setLoading(true);
       const response = await axios.delete("/fund-transfers/clear-history");
-      setSuccess(
+      toast.success(
         `${response.data.deletedCount} fund transfer record(s) cleared successfully!`,
       );
       setAllTransactions([]);
       fetchStats(); // Refresh stats
-      setTimeout(() => setSuccess(""), 3000);
     } catch (err) {
       console.error("Error clearing history:", err);
-      setError(err.response?.data?.message || "Failed to clear history");
-      setTimeout(() => setError(""), 3000);
+      toast.error(err.response?.data?.message || "Failed to clear history");
     } finally {
       setLoading(false);
     }
@@ -1425,6 +1430,55 @@ const FundTransfer = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Confirmation Modal */}
+      {confirmModal.show && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 animate-slideInUp">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center">
+                <svg
+                  className="w-6 h-6 text-red-600"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                  />
+                </svg>
+              </div>
+              <h3 className="text-xl font-bold text-gray-900">
+                Confirm Action
+              </h3>
+            </div>
+            <p className="text-gray-700 mb-6">{confirmModal.message}</p>
+            <div className="flex gap-3">
+              <button
+                onClick={() =>
+                  setConfirmModal({ show: false, action: null, message: "" })
+                }
+                className="flex-1 px-4 py-2.5 border-2 border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 transition-all font-semibold"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  const { action } = confirmModal;
+                  setConfirmModal({ show: false, action: null, message: "" });
+                  if (action === "clearHistory") executeClearHistory();
+                }}
+                className="flex-1 px-4 py-2.5 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-xl hover:shadow-lg transition-all font-semibold"
+              >
+                Confirm
+              </button>
+            </div>
           </div>
         </div>
       )}

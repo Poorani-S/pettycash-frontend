@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Layout from "../components/Layout";
 import axios from "../utils/axios";
+import { toast } from "react-toastify";
 
 function UserManagement() {
   const navigate = useNavigate();
@@ -12,6 +13,12 @@ function UserManagement() {
   const [activeTab, setActiveTab] = useState("users"); // "users" or "history"
   const [activityLogs, setActivityLogs] = useState([]);
   const [loadingActivity, setLoadingActivity] = useState(false);
+  const [confirmModal, setConfirmModal] = useState({
+    show: false,
+    action: null,
+    data: null,
+    message: "",
+  });
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -215,17 +222,18 @@ function UserManagement() {
   };
 
   const handleDeactivate = async (userId, userName) => {
-    if (
-      !confirm(
-        `Are you sure you want to deactivate ${userName}? They will no longer be able to login.`,
-      )
-    ) {
-      return;
-    }
+    setConfirmModal({
+      show: true,
+      action: "deactivate",
+      data: { userId, userName },
+      message: `Are you sure you want to deactivate ${userName}? They will no longer be able to login.`,
+    });
+  };
 
+  const executeDeactivate = async (userId, userName) => {
     try {
       await axios.patch(`/users/${userId}/deactivate`);
-      setSuccess("User deactivated successfully");
+      toast.success("User deactivated successfully");
       fetchUsers();
 
       // Trigger custom event to notify other components about user list changes
@@ -234,25 +242,24 @@ function UserManagement() {
           detail: { timestamp: Date.now() },
         }),
       );
-
-      setTimeout(() => setSuccess(""), 3000);
     } catch (err) {
-      setError(err.response?.data?.message || "Failed to deactivate user");
+      toast.error(err.response?.data?.message || "Failed to deactivate user");
     }
   };
 
   const handleDeleteUserFromLog = async (userId, userName) => {
-    if (
-      !confirm(
-        `Are you sure you want to permanently delete ${userName}? This action cannot be undone.`,
-      )
-    ) {
-      return;
-    }
+    setConfirmModal({
+      show: true,
+      action: "delete",
+      data: { userId, userName },
+      message: `Are you sure you want to permanently delete ${userName}? This action cannot be undone.`,
+    });
+  };
 
+  const executeDelete = async (userId, userName) => {
     try {
       await axios.delete(`/users/${userId}`);
-      setSuccess(`User ${userName} deleted successfully`);
+      toast.success(`User ${userName} deleted successfully`);
       fetchUsers();
       fetchActivityLogs(); // Refresh activity logs
 
@@ -262,25 +269,26 @@ function UserManagement() {
           detail: { timestamp: Date.now() },
         }),
       );
-
-      setTimeout(() => setSuccess(""), 3000);
     } catch (err) {
-      setError(err.response?.data?.message || "Failed to delete user");
-      setTimeout(() => setError(""), 3000);
+      toast.error(err.response?.data?.message || "Failed to delete user");
     }
   };
 
   const handleResendInvitation = async (userId, userName, userEmail) => {
-    if (!confirm(`Resend invitation email to ${userName} (${userEmail})?`)) {
-      return;
-    }
+    setConfirmModal({
+      show: true,
+      action: "resend",
+      data: { userId, userName, userEmail },
+      message: `Resend invitation email to ${userName} (${userEmail})?`,
+    });
+  };
 
+  const executeResendInvitation = async (userId, userName, userEmail) => {
     try {
       await axios.post(`/users/${userId}/resend-invitation`);
-      setSuccess(`Invitation email sent successfully to ${userEmail}`);
-      setTimeout(() => setSuccess(""), 5000);
+      toast.success(`Invitation email sent successfully to ${userEmail}`);
     } catch (err) {
-      setError(
+      toast.error(
         err.response?.data?.message || "Failed to send invitation email",
       );
     }
@@ -1316,6 +1324,74 @@ function UserManagement() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Confirmation Modal */}
+      {confirmModal.show && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 animate-slideInUp">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-12 h-12 rounded-full bg-yellow-100 flex items-center justify-center">
+                <svg
+                  className="w-6 h-6 text-yellow-600"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                  />
+                </svg>
+              </div>
+              <h3 className="text-xl font-bold text-gray-900">
+                Confirm Action
+              </h3>
+            </div>
+            <p className="text-gray-700 mb-6">{confirmModal.message}</p>
+            <div className="flex gap-3">
+              <button
+                onClick={() =>
+                  setConfirmModal({
+                    show: false,
+                    action: null,
+                    data: null,
+                    message: "",
+                  })
+                }
+                className="flex-1 px-4 py-2.5 border-2 border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 transition-all font-semibold"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  const { action, data } = confirmModal;
+                  setConfirmModal({
+                    show: false,
+                    action: null,
+                    data: null,
+                    message: "",
+                  });
+                  if (action === "deactivate")
+                    executeDeactivate(data.userId, data.userName);
+                  else if (action === "delete")
+                    executeDelete(data.userId, data.userName);
+                  else if (action === "resend")
+                    executeResendInvitation(
+                      data.userId,
+                      data.userName,
+                      data.userEmail,
+                    );
+                }}
+                className="flex-1 px-4 py-2.5 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-xl hover:shadow-lg transition-all font-semibold"
+              >
+                Confirm
+              </button>
+            </div>
           </div>
         </div>
       )}

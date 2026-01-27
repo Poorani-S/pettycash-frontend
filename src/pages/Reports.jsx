@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "../utils/axios";
 import Layout from "../components/Layout";
+import { toast } from "react-toastify";
 
 const Reports = () => {
   const navigate = useNavigate();
@@ -21,6 +22,11 @@ const Reports = () => {
   const [selectedCategory, setSelectedCategory] = useState("");
   const [selectedStatus, setSelectedStatus] = useState("");
   const [selectedUser, setSelectedUser] = useState("");
+  const [confirmModal, setConfirmModal] = useState({
+    show: false,
+    action: null,
+    message: "",
+  });
 
   // New user modal states
   const [showAddUserModal, setShowAddUserModal] = useState(false);
@@ -109,6 +115,13 @@ const Reports = () => {
 
     // Only generate if not using custom date range, or if custom dates are set
     if (period !== "custom" || (customStartDate && customEndDate)) {
+      console.log("Generating report with filters:", {
+        reportType,
+        period,
+        selectedCategory,
+        selectedStatus,
+        selectedUser: selectedUser || "All Users",
+      });
       generateReport();
     }
   }, [
@@ -135,11 +148,16 @@ const Reports = () => {
     try {
       if (showLoader) setUsersLoading(true);
       const response = await axios.get("/users");
-      setUsers(response.data.data || []);
+      const fetchedUsers = response.data.data || [];
+      // Filter only active users for the dropdown
+      const activeUsers = fetchedUsers.filter((u) => u.isActive !== false);
+      setUsers(activeUsers);
       setLastUsersFetch(new Date());
+      console.log("Fetched users for dropdown:", activeUsers.length);
     } catch (err) {
       console.error("Error fetching users:", err);
-      // Optionally show a toast notification for failed refresh
+      toast.error("Failed to load users. Please try again.");
+      setUsers([]);
     } finally {
       if (showLoader) setUsersLoading(false);
     }
@@ -147,10 +165,14 @@ const Reports = () => {
 
   const handleUserChange = (e) => {
     const value = e.target.value;
+    console.log("User dropdown changed to:", value);
     if (value === "add_new") {
       setShowAddUserModal(true);
+      // Reset to previous value or empty
+      e.target.value = selectedUser;
     } else {
       setSelectedUser(value);
+      // Trigger report regeneration will happen via useEffect
     }
   };
 
@@ -167,7 +189,7 @@ const Reports = () => {
         setSelectedUser(response.data.data._id);
       }
       // Show success notification
-      alert(
+      toast.success(
         `User "${newClient.name}" has been successfully created and added to the user list!`,
       );
 
@@ -191,7 +213,7 @@ const Reports = () => {
         },
       });
     } catch (err) {
-      alert(err.response?.data?.message || "Failed to add user");
+      toast.error(err.response?.data?.message || "Failed to add user");
     } finally {
       setNewUserLoading(false);
     }
@@ -222,7 +244,33 @@ const Reports = () => {
       setReportData(response.data.data);
     } catch (err) {
       console.error("Error generating report:", err);
-      alert(err.response?.data?.message || "Failed to generate report");
+      toast.error(err.response?.data?.message || "Failed to generate report");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const sendCEOReport = async () => {
+    setConfirmModal({
+      show: true,
+      action: "sendCEO",
+      message: "Send admin transaction report to CEO at ceo@kambaa.com?",
+    });
+  };
+
+  const executeSendCEOReport = async () => {
+    try {
+      setLoading(true);
+      const response = await axios.post("/transactions/send-ceo-report");
+
+      if (response.data.success) {
+        toast.success(
+          `Report sent successfully to CEO! Transactions included: ${response.data.transactionCount}`,
+        );
+      }
+    } catch (err) {
+      console.error("Error sending CEO report:", err);
+      toast.error(err.response?.data?.message || "Failed to send CEO report");
     } finally {
       setLoading(false);
     }
@@ -258,7 +306,7 @@ const Reports = () => {
       link.remove();
     } catch (err) {
       console.error("Error exporting PDF:", err);
-      alert("Failed to export PDF");
+      toast.error("Failed to export PDF");
     } finally {
       setLoading(false);
     }
@@ -294,7 +342,7 @@ const Reports = () => {
       link.remove();
     } catch (err) {
       console.error("Error exporting Excel:", err);
-      alert("Failed to export Excel");
+      toast.error("Failed to export Excel");
     } finally {
       setLoading(false);
     }
@@ -507,14 +555,20 @@ const Reports = () => {
                   <option value="">
                     {usersLoading
                       ? "Loading users..."
-                      : `All Users (${users.length} total)`}
+                      : users.length > 0
+                        ? `All Users (${users.length} total)`
+                        : "All Users (No users found)"}
                   </option>
-                  {!usersLoading &&
+                  {!usersLoading && users.length > 0 ? (
                     users.map((u) => (
                       <option key={u._id} value={u._id}>
-                        {u.name} ({u.role})
+                        {u.name} ({u.role || "N/A"})
+                        {u.email ? ` - ${u.email}` : ""}
                       </option>
-                    ))}
+                    ))
+                  ) : !usersLoading && users.length === 0 ? (
+                    <option disabled>No users available</option>
+                  ) : null}
                   {!usersLoading && (
                     <option
                       value="add_new"
@@ -660,6 +714,29 @@ const Reports = () => {
               </svg>
               Export Excel
             </button>
+            {user?.role === "admin" && (
+              <button
+                onClick={sendCEOReport}
+                disabled={loading}
+                className="px-8 py-4 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white rounded-xl font-bold shadow-lg hover:shadow-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed transform hover:-translate-y-0.5 flex items-center gap-2"
+                title="Send comprehensive admin transaction report to CEO at ceo@kambaa.com"
+              >
+                <svg
+                  className="w-5 h-5"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
+                  />
+                </svg>
+                Send to CEO
+              </button>
+            )}
           </div>
         </div>
 
@@ -1337,6 +1414,55 @@ const Reports = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Confirmation Modal */}
+      {confirmModal.show && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 animate-slideInUp">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center">
+                <svg
+                  className="w-6 h-6 text-blue-600"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                  />
+                </svg>
+              </div>
+              <h3 className="text-xl font-bold text-gray-900">
+                Confirm Action
+              </h3>
+            </div>
+            <p className="text-gray-700 mb-6">{confirmModal.message}</p>
+            <div className="flex gap-3">
+              <button
+                onClick={() =>
+                  setConfirmModal({ show: false, action: null, message: "" })
+                }
+                className="flex-1 px-4 py-2.5 border-2 border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 transition-all font-semibold"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  const { action } = confirmModal;
+                  setConfirmModal({ show: false, action: null, message: "" });
+                  if (action === "sendCEO") executeSendCEOReport();
+                }}
+                className="flex-1 px-4 py-2.5 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-xl hover:shadow-lg transition-all font-semibold"
+              >
+                Confirm
+              </button>
+            </div>
           </div>
         </div>
       )}

@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "../utils/axios";
 import Layout from "../components/Layout";
+import { toast } from "react-toastify";
 
 const Transactions = () => {
   const navigate = useNavigate();
@@ -10,6 +11,18 @@ const Transactions = () => {
   const [filter, setFilter] = useState("all"); // all, pending, approved, rejected
   const [user, setUser] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [processingId, setProcessingId] = useState(null);
+  const [confirmModal, setConfirmModal] = useState({
+    show: false,
+    action: null,
+    data: null,
+    message: "",
+  });
+  const [rejectModal, setRejectModal] = useState({
+    show: false,
+    transactionId: null,
+  });
+  const [rejectComment, setRejectComment] = useState("");
 
   useEffect(() => {
     const userData = localStorage.getItem("user");
@@ -27,33 +40,76 @@ const Transactions = () => {
       setTransactions(response.data.data);
     } catch (err) {
       console.error("Error fetching transactions:", err);
+      toast.error("Failed to load transactions. Please try again.");
     } finally {
       setLoading(false);
     }
   };
 
   const handleApprove = async (id) => {
-    if (!window.confirm("Are you sure you want to approve this transaction?")) {
-      return;
-    }
+    setConfirmModal({
+      show: true,
+      action: "approve",
+      data: { id },
+      message: "Are you sure you want to approve this transaction?",
+    });
+  };
 
+  const executeApprove = async (id) => {
     try {
-      await axios.patch(`/transactions/${id}/approve`);
-      fetchTransactions();
+      setProcessingId(id);
+      const response = await axios.patch(`/transactions/${id}/approve`);
+
+      if (response.data.success) {
+        toast.success("Transaction approved successfully!");
+        await fetchTransactions();
+      }
     } catch (err) {
-      alert(err.response?.data?.message || "Failed to approve transaction");
+      console.error("Approve error:", err);
+      console.error("Error response:", err.response?.data);
+      console.error("Error status:", err.response?.status);
+      const errorMessage =
+        err.response?.data?.message ||
+        "Failed to approve transaction. Please try again.";
+      toast.error(errorMessage);
+    } finally {
+      setProcessingId(null);
     }
   };
 
   const handleReject = async (id) => {
-    const comment = window.prompt("Enter rejection reason:");
-    if (!comment) return;
+    setRejectModal({ show: true, transactionId: id });
+    setRejectComment("");
+  };
+
+  const executeReject = async () => {
+    if (!rejectComment || rejectComment.trim() === "") {
+      toast.warning("Rejection reason is required!");
+      return;
+    }
+
+    const id = rejectModal.transactionId;
+    setRejectModal({ show: false, transactionId: null });
 
     try {
-      await axios.patch(`/transactions/${id}/reject`, { comment });
-      fetchTransactions();
+      setProcessingId(id);
+      const response = await axios.patch(`/transactions/${id}/reject`, {
+        comment: rejectComment.trim(),
+      });
+
+      if (response.data.success) {
+        toast.success("Transaction rejected successfully!");
+        await fetchTransactions();
+      }
     } catch (err) {
-      alert(err.response?.data?.message || "Failed to reject transaction");
+      console.error("Reject error:", err);
+      console.error("Error response:", err.response?.data);
+      const errorMessage =
+        err.response?.data?.message ||
+        "Failed to reject transaction. Please try again.";
+      toast.error(errorMessage);
+    } finally {
+      setProcessingId(null);
     }
   };
 
@@ -106,29 +162,91 @@ const Transactions = () => {
               Transaction Management
             </h1>
             <p className="text-gray-600 text-lg">
-              View, manage and track all expense transactions
+              {user?.role === "admin"
+                ? "View and manage all transactions across the organization"
+                : user?.role === "manager"
+                  ? "View and manage your team's expense transactions"
+                  : "View, manage and track your expense transactions"}
             </p>
           </div>
-          <button
-            onClick={() => navigate("/transactions/new")}
-            className="px-6 py-3 bg-gradient-to-r from-[#023e8a] to-[#0077b6] text-white rounded-xl hover:shadow-lg transition-all duration-300 flex items-center gap-2 group shadow-md"
-          >
-            <svg
-              className="w-5 h-5 group-hover:rotate-90 transition-transform duration-300"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
+          {(user?.role !== "admin" || user?.role === "manager") && (
+            <button
+              onClick={() => navigate("/transactions/new")}
+              className="px-6 py-3 bg-gradient-to-r from-[#023e8a] to-[#0077b6] text-white rounded-xl hover:shadow-lg transition-all duration-300 flex items-center gap-2 group shadow-md"
             >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M12 4v16m8-8H4"
-              />
-            </svg>
-            <span className="font-semibold">New Expense</span>
-          </button>
+              <svg
+                className="w-5 h-5 group-hover:rotate-90 transition-transform duration-300"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 4v16m8-8H4"
+                />
+              </svg>
+              <span className="font-semibold">New Expense</span>
+            </button>
+          )}
         </div>
+
+        {/* Role-based info banner */}
+        {user?.role === "manager" && (
+          <div className="bg-blue-50 border-l-4 border-blue-500 rounded-xl p-4 mb-4">
+            <div className="flex items-start gap-3">
+              <svg
+                className="w-6 h-6 text-blue-500 flex-shrink-0 mt-0.5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
+              </svg>
+              <div>
+                <p className="font-semibold text-blue-800 mb-1">Manager View</p>
+                <p className="text-blue-700 text-sm">
+                  You can view and approve transactions from your team members
+                  (employees and interns under your management).
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+        {user?.role === "employee" && (
+          <div className="bg-green-50 border-l-4 border-green-500 rounded-xl p-4 mb-4">
+            <div className="flex items-start gap-3">
+              <svg
+                className="w-6 h-6 text-green-500 flex-shrink-0 mt-0.5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
+              </svg>
+              <div>
+                <p className="font-semibold text-green-800 mb-1">
+                  Employee View
+                </p>
+                <p className="text-green-700 text-sm">
+                  You can view your submitted expense transactions and track
+                  their approval status.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Statistics Cards */}
@@ -585,46 +703,66 @@ const Transactions = () => {
                 </p>
 
                 <div className="flex items-center gap-3">
-                  {user?.role === "admin" &&
+                  {(user?.role === "admin" || user?.role === "manager") &&
                     transaction.status === "pending" && (
                       <>
                         <button
                           onClick={() => handleReject(transaction._id)}
-                          className="px-5 py-2.5 bg-red-500 hover:bg-red-600 text-white rounded-xl text-sm font-bold transition-all duration-300 flex items-center gap-2 shadow-md hover:shadow-lg"
+                          disabled={processingId === transaction._id}
+                          className="px-5 py-2.5 bg-red-500 hover:bg-red-600 text-white rounded-xl text-sm font-bold transition-all duration-300 flex items-center gap-2 shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                          <svg
-                            className="w-4 h-4"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M6 18L18 6M6 6l12 12"
-                            />
-                          </svg>
-                          Reject
+                          {processingId === transaction._id ? (
+                            <>
+                              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                              Processing...
+                            </>
+                          ) : (
+                            <>
+                              <svg
+                                className="w-4 h-4"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M6 18L18 6M6 6l12 12"
+                                />
+                              </svg>
+                              Reject
+                            </>
+                          )}
                         </button>
                         <button
                           onClick={() => handleApprove(transaction._id)}
-                          className="px-5 py-2.5 bg-green-500 hover:bg-green-600 text-white rounded-xl text-sm font-bold transition-all duration-300 flex items-center gap-2 shadow-md hover:shadow-lg"
+                          disabled={processingId === transaction._id}
+                          className="px-5 py-2.5 bg-green-500 hover:bg-green-600 text-white rounded-xl text-sm font-bold transition-all duration-300 flex items-center gap-2 shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                          <svg
-                            className="w-4 h-4"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M5 13l4 4L19 7"
-                            />
-                          </svg>
-                          Approve
+                          {processingId === transaction._id ? (
+                            <>
+                              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                              Processing...
+                            </>
+                          ) : (
+                            <>
+                              <svg
+                                className="w-4 h-4"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M5 13l4 4L19 7"
+                                />
+                              </svg>
+                              Approve
+                            </>
+                          )}
                         </button>
                       </>
                     )}
@@ -658,6 +796,123 @@ const Transactions = () => {
                 )}
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Confirmation Modal */}
+      {confirmModal.show && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 animate-slideInUp">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center">
+                <svg
+                  className="w-6 h-6 text-blue-600"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                  />
+                </svg>
+              </div>
+              <h3 className="text-xl font-bold text-gray-900">
+                Confirm Action
+              </h3>
+            </div>
+            <p className="text-gray-700 mb-6">{confirmModal.message}</p>
+            <div className="flex gap-3">
+              <button
+                onClick={() =>
+                  setConfirmModal({
+                    show: false,
+                    action: null,
+                    data: null,
+                    message: "",
+                  })
+                }
+                className="flex-1 px-4 py-2.5 border-2 border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 transition-all font-semibold"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  const { action, data } = confirmModal;
+                  setConfirmModal({
+                    show: false,
+                    action: null,
+                    data: null,
+                    message: "",
+                  });
+                  if (action === "approve") executeApprove(data.id);
+                }}
+                className="flex-1 px-4 py-2.5 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-xl hover:shadow-lg transition-all font-semibold"
+              >
+                Confirm
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Rejection Modal */}
+      {rejectModal.show && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 animate-slideInUp">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center">
+                <svg
+                  className="w-6 h-6 text-red-600"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M6 18L18 6M6 6l12 12"
+                  />
+                </svg>
+              </div>
+              <h3 className="text-xl font-bold text-gray-900">
+                Reject Transaction
+              </h3>
+            </div>
+            <div className="mb-6">
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                Rejection Reason <span className="text-red-500">*</span>
+              </label>
+              <textarea
+                value={rejectComment}
+                onChange={(e) => setRejectComment(e.target.value)}
+                placeholder="Enter the reason for rejection..."
+                className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-all resize-none"
+                rows="4"
+                autoFocus
+              />
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  setRejectModal({ show: false, transactionId: null });
+                  setRejectComment("");
+                }}
+                className="flex-1 px-4 py-2.5 border-2 border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 transition-all font-semibold"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={executeReject}
+                className="flex-1 px-4 py-2.5 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-xl hover:shadow-lg transition-all font-semibold"
+              >
+                Reject Transaction
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </Layout>
