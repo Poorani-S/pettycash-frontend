@@ -1102,22 +1102,58 @@ function UserManagement() {
                       <label className="block text-sm font-bold text-gray-700 mb-2">
                         Assign Manager *
                       </label>
-                      <select
-                        name="managerId"
-                        value={formData.managerId}
-                        onChange={handleInputChange}
-                        className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-[#0077b6] focus:border-[#0077b6] transition-all"
-                        required
-                      >
-                        <option value="">Select a manager</option>
-                        {users
-                          .filter((u) => u.role === "manager")
-                          .map((manager) => (
-                            <option key={manager._id} value={manager._id}>
-                              {manager.name} - {manager.department || "No Dept"}
-                            </option>
-                          ))}
-                      </select>
+                      <div className="relative">
+                        <select
+                          name="managerId"
+                          value={formData.managerId}
+                          onChange={handleInputChange}
+                          className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-[#0077b6] focus:border-[#0077b6] transition-all"
+                          required
+                        >
+                          <option value="">Select a manager</option>
+                          {users
+                            .filter((u) => u.role === "manager")
+                            .map((manager) => (
+                              <option key={manager._id} value={manager._id}>
+                                {manager.name} - {manager.department || "No Dept"}
+                              </option>
+                            ))}
+                        </select>
+                        {formData.managerId && (
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              const managerToDelete = users.find(u => u._id === formData.managerId);
+                              if (window.confirm(`Delete manager "${managerToDelete?.name}"?\n\nThis will permanently remove this user from the system.`)) {
+                                try {
+                                  await axios.delete(`/users/${formData.managerId}`);
+                                  toast.success('Manager deleted successfully');
+                                  setFormData({ ...formData, managerId: '' });
+                                  fetchUsers();
+                                } catch (error) {
+                                  toast.error(error.response?.data?.message || 'Failed to delete manager');
+                                }
+                              }
+                            }}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 p-2 text-red-600 hover:text-red-800 hover:bg-red-50 rounded-lg transition-all"
+                            title="Delete manager"
+                          >
+                            <svg
+                              className="w-5 h-5"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                              />
+                            </svg>
+                          </button>
+                        )}
+                      </div>
                       <p className="text-sm text-gray-500 mt-1">
                         {formData.role === "employee" ? "Employee" : "Intern"}{" "}
                         will report to this manager

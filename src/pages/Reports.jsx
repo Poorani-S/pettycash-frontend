@@ -483,18 +483,53 @@ const Reports = () => {
                 </svg>
                 Category
               </label>
-              <select
-                value={selectedCategory}
-                onChange={(e) => setSelectedCategory(e.target.value)}
-                className="w-full px-5 py-4 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-[#0077b6] focus:border-[#0077b6] transition-all duration-300 font-medium hover:border-[#0077b6]"
-              >
-                <option value="">All Categories</option>
-                {categories.map((cat) => (
-                  <option key={cat._id} value={cat._id}>
-                    {cat.name}
-                  </option>
-                ))}
-              </select>
+              <div className="relative">
+                <select
+                  value={selectedCategory}
+                  onChange={(e) => setSelectedCategory(e.target.value)}
+                  className="w-full px-5 py-4 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-[#0077b6] focus:border-[#0077b6] transition-all duration-300 font-medium hover:border-[#0077b6]"
+                >
+                  <option value="">All Categories</option>
+                  {categories.map((cat) => (
+                    <option key={cat._id} value={cat._id}>
+                      {cat.name}
+                    </option>
+                  ))}
+                </select>
+                {selectedCategory && (
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      if (window.confirm(`Delete category "${categories.find(c => c._id === selectedCategory)?.name}"?\n\nThis will permanently remove this category.`)) {
+                        try {
+                          await axios.delete(`/categories/${selectedCategory}`);
+                          toast.success('Category deleted successfully');
+                          setSelectedCategory('');
+                          fetchCategories();
+                        } catch (error) {
+                          toast.error(error.response?.data?.message || 'Failed to delete category');
+                        }
+                      }
+                    }}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 p-2 text-red-600 hover:text-red-800 hover:bg-red-50 rounded-lg transition-all"
+                    title="Delete category"
+                  >
+                    <svg
+                      className="w-5 h-5"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                      />
+                    </svg>
+                  </button>
+                )}
+              </div>
             </div>
 
             {/* User Filter - Only for Admin */}
@@ -546,38 +581,74 @@ const Reports = () => {
                     </button>
                   </div>
                 </label>
-                <select
-                  value={selectedUser}
-                  onChange={handleUserChange}
-                  disabled={usersLoading}
-                  className="w-full px-5 py-4 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-[#0077b6] focus:border-[#0077b6] transition-all duration-300 font-medium hover:border-[#0077b6] disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <option value="">
-                    {usersLoading
-                      ? "Loading users..."
-                      : users.length > 0
-                        ? `All Users (${users.length} total)`
-                        : "All Users (No users found)"}
-                  </option>
-                  {!usersLoading && users.length > 0 ? (
-                    users.map((u) => (
-                      <option key={u._id} value={u._id}>
-                        {u.name} ({u.role || "N/A"})
-                        {u.email ? ` - ${u.email}` : ""}
-                      </option>
-                    ))
-                  ) : !usersLoading && users.length === 0 ? (
-                    <option disabled>No users available</option>
-                  ) : null}
-                  {!usersLoading && (
-                    <option
-                      value="add_new"
-                      className="font-semibold text-[#0077b6]"
-                    >
-                      ➕ Create New User
+                <div className="relative">
+                  <select
+                    value={selectedUser}
+                    onChange={handleUserChange}
+                    disabled={usersLoading}
+                    className="w-full px-5 py-4 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-[#0077b6] focus:border-[#0077b6] transition-all duration-300 font-medium hover:border-[#0077b6] disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <option value="">
+                      {usersLoading
+                        ? "Loading users..."
+                        : users.length > 0
+                          ? `All Users (${users.length} total)`
+                          : "All Users (No users found)"}
                     </option>
+                    {!usersLoading && users.length > 0 ? (
+                      users.map((u) => (
+                        <option key={u._id} value={u._id}>
+                          {u.name} ({u.role || "N/A"})
+                          {u.email ? ` - ${u.email}` : ""}
+                        </option>
+                      ))
+                    ) : !usersLoading && users.length === 0 ? (
+                      <option disabled>No users available</option>
+                    ) : null}
+                    {!usersLoading && (
+                      <option
+                        value="add_new"
+                        className="font-semibold text-[#0077b6]"
+                      >
+                        ➕ Create New User
+                      </option>
+                    )}
+                  </select>
+                  {selectedUser && selectedUser !== 'add_new' && (
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        const userToDelete = users.find(u => u._id === selectedUser);
+                        if (window.confirm(`Delete user "${userToDelete?.name}"?\n\nThis will permanently remove this user from the system.`)) {
+                          try {
+                            await axios.delete(`/users/${selectedUser}`);
+                            toast.success('User deleted successfully');
+                            setSelectedUser('');
+                            fetchUsers(true);
+                          } catch (error) {
+                            toast.error(error.response?.data?.message || 'Failed to delete user');
+                          }
+                        }
+                      }}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 p-2 text-red-600 hover:text-red-800 hover:bg-red-50 rounded-lg transition-all"
+                      title="Delete user"
+                    >
+                      <svg
+                        className="w-5 h-5"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                        />
+                      </svg>
+                    </button>
                   )}
-                </select>
+                </div>
               </div>
             )}
           </div>
