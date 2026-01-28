@@ -591,7 +591,7 @@ const FundTransfer = () => {
                   ➕ Add New User
                 </option>
               </select>
-              
+
               {selectedClient && selectedClient !== "add_new" && (
                 <button
                   type="button"
@@ -624,7 +624,6 @@ const FundTransfer = () => {
                   Delete Selected User
                 </button>
               )}
-              </div>
             </div>
 
             {/* Transfer Type */}

@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "../utils/axios";
 import Layout from "../components/Layout";
-import { toast } from "react-toastify";
 
 const Transactions = () => {
   const navigate = useNavigate();
@@ -11,18 +10,6 @@ const Transactions = () => {
   const [filter, setFilter] = useState("all"); // all, pending, approved, rejected
   const [user, setUser] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
-  const [processingId, setProcessingId] = useState(null);
-  const [confirmModal, setConfirmModal] = useState({
-    show: false,
-    action: null,
-    data: null,
-    message: "",
-  });
-  const [rejectModal, setRejectModal] = useState({
-    show: false,
-    transactionId: null,
-  });
-  const [rejectComment, setRejectComment] = useState("");
 
   useEffect(() => {
     const userData = localStorage.getItem("user");
@@ -40,76 +27,33 @@ const Transactions = () => {
       setTransactions(response.data.data);
     } catch (err) {
       console.error("Error fetching transactions:", err);
-      toast.error("Failed to load transactions. Please try again.");
     } finally {
       setLoading(false);
     }
   };
 
   const handleApprove = async (id) => {
-    setConfirmModal({
-      show: true,
-      action: "approve",
-      data: { id },
-      message: "Are you sure you want to approve this transaction?",
-    });
-  };
+    if (!window.confirm("Are you sure you want to approve this transaction?")) {
+      return;
+    }
 
-  const executeApprove = async (id) => {
     try {
-      setProcessingId(id);
-      const response = await axios.patch(`/transactions/${id}/approve`);
-
-      if (response.data.success) {
-        toast.success("Transaction approved successfully!");
-        await fetchTransactions();
-      }
+      await axios.patch(`/transactions/${id}/approve`);
+      fetchTransactions();
     } catch (err) {
-      console.error("Approve error:", err);
-      console.error("Error response:", err.response?.data);
-      console.error("Error status:", err.response?.status);
-      const errorMessage =
-        err.response?.data?.message ||
-        "Failed to approve transaction. Please try again.";
-      toast.error(errorMessage);
-    } finally {
-      setProcessingId(null);
+      alert(err.response?.data?.message || "Failed to approve transaction");
     }
   };
 
   const handleReject = async (id) => {
-    setRejectModal({ show: true, transactionId: id });
-    setRejectComment("");
-  };
-
-  const executeReject = async () => {
-    if (!rejectComment || rejectComment.trim() === "") {
-      toast.warning("Rejection reason is required!");
-      return;
-    }
-
-    const id = rejectModal.transactionId;
-    setRejectModal({ show: false, transactionId: null });
+    const comment = window.prompt("Enter rejection reason:");
+    if (!comment) return;
 
     try {
-      setProcessingId(id);
-      const response = await axios.patch(`/transactions/${id}/reject`, {
-        comment: rejectComment.trim(),
-      });
-
-      if (response.data.success) {
-        toast.success("Transaction rejected successfully!");
-        await fetchTransactions();
-      }
+      await axios.patch(`/transactions/${id}/reject`, { comment });
+      fetchTransactions();
     } catch (err) {
-      console.error("Reject error:", err);
-      console.error("Error response:", err.response?.data);
-      const errorMessage =
-        err.response?.data?.message ||
-        "Failed to reject transaction. Please try again.";
-      toast.error(errorMessage);
-    } finally {
-      setProcessingId(null);
+      alert(err.response?.data?.message || "Failed to reject transaction");
     }
   };
 
@@ -162,99 +106,37 @@ const Transactions = () => {
               Transaction Management
             </h1>
             <p className="text-gray-600 text-lg">
-              {user?.role === "admin"
-                ? "View and manage all transactions across the organization"
-                : user?.role === "manager"
-                  ? "View and manage your team's expense transactions"
-                  : "View, manage and track your expense transactions"}
+              View, manage and track all expense transactions
             </p>
           </div>
-          {(user?.role !== "admin" || user?.role === "manager") && (
-            <button
-              onClick={() => navigate("/transactions/new")}
-              className="px-6 py-3 bg-gradient-to-r from-[#023e8a] to-[#0077b6] text-white rounded-xl hover:shadow-lg transition-all duration-300 flex items-center gap-2 group shadow-md"
+          <button
+            onClick={() => navigate("/transactions/new")}
+            className="px-6 py-3 bg-gradient-to-r from-[#023e8a] to-[#0077b6] text-white rounded-xl hover:shadow-lg transition-all duration-300 flex items-center gap-2 group shadow-md"
+          >
+            <svg
+              className="w-5 h-5 group-hover:rotate-90 transition-transform duration-300"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
             >
-              <svg
-                className="w-5 h-5 group-hover:rotate-90 transition-transform duration-300"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M12 4v16m8-8H4"
-                />
-              </svg>
-              <span className="font-semibold">New Expense</span>
-            </button>
-          )}
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 4v16m8-8H4"
+              />
+            </svg>
+            <span className="font-semibold">New Expense</span>
+          </button>
         </div>
-
-        {/* Role-based info banner */}
-        {user?.role === "manager" && (
-          <div className="bg-blue-50 border-l-4 border-blue-500 rounded-xl p-4 mb-4">
-            <div className="flex items-start gap-3">
-              <svg
-                className="w-6 h-6 text-blue-500 flex-shrink-0 mt-0.5"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                />
-              </svg>
-              <div>
-                <p className="font-semibold text-blue-800 mb-1">Manager View</p>
-                <p className="text-blue-700 text-sm">
-                  You can view and approve transactions from your team members
-                  (employees and interns under your management).
-                </p>
-              </div>
-            </div>
-          </div>
-        )}
-        {user?.role === "employee" && (
-          <div className="bg-green-50 border-l-4 border-green-500 rounded-xl p-4 mb-4">
-            <div className="flex items-start gap-3">
-              <svg
-                className="w-6 h-6 text-green-500 flex-shrink-0 mt-0.5"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                />
-              </svg>
-              <div>
-                <p className="font-semibold text-green-800 mb-1">
-                  Employee View
-                </p>
-                <p className="text-green-700 text-sm">
-                  You can view your submitted expense transactions and track
-                  their approval status.
-                </p>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
 
       {/* Statistics Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 sm:gap-6 mb-6 sm:mb-8">
-        <div className="bg-white rounded-xl sm:rounded-2xl p-4 sm:p-6 shadow-soft hover:shadow-hover transition-all duration-300 card-hover animate-slideInLeft border-l-4 border-blue-500">
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-6 mb-8">
+        <div className="bg-white rounded-2xl p-6 shadow-soft hover:shadow-hover transition-all duration-300 card-hover animate-slideInLeft border-l-4 border-blue-500">
           <div className="flex items-center justify-between mb-2">
             <svg
-              className="w-8 h-8 sm:w-10 sm:h-10 text-blue-500"
+              className="w-10 h-10 text-blue-500"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -267,21 +149,19 @@ const Transactions = () => {
               />
             </svg>
           </div>
-          <p className="text-gray-600 text-xs sm:text-sm font-semibold mb-1">
+          <p className="text-gray-600 text-sm font-semibold mb-1">
             Total Transactions
           </p>
-          <p className="text-2xl sm:text-3xl font-bold text-gray-800">
-            {stats.total}
-          </p>
+          <p className="text-3xl font-bold text-gray-800">{stats.total}</p>
         </div>
 
         <div
-          className="bg-white rounded-xl sm:rounded-2xl p-4 sm:p-6 shadow-soft hover:shadow-hover transition-all duration-300 card-hover animate-slideInLeft border-l-4 border-yellow-500"
+          className="bg-white rounded-2xl p-6 shadow-soft hover:shadow-hover transition-all duration-300 card-hover animate-slideInLeft border-l-4 border-yellow-500"
           style={{ animationDelay: "50ms" }}
         >
           <div className="flex items-center justify-between mb-2">
             <svg
-              className="w-8 h-8 sm:w-10 sm:h-10 text-yellow-500"
+              className="w-10 h-10 text-yellow-500"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -294,21 +174,17 @@ const Transactions = () => {
               />
             </svg>
           </div>
-          <p className="text-gray-600 text-xs sm:text-sm font-semibold mb-1">
-            Pending
-          </p>
-          <p className="text-2xl sm:text-3xl font-bold text-gray-800">
-            {stats.pending}
-          </p>
+          <p className="text-gray-600 text-sm font-semibold mb-1">Pending</p>
+          <p className="text-3xl font-bold text-gray-800">{stats.pending}</p>
         </div>
 
         <div
-          className="bg-white rounded-xl sm:rounded-2xl p-4 sm:p-6 shadow-soft hover:shadow-hover transition-all duration-300 card-hover animate-slideInLeft border-l-4 border-green-500"
+          className="bg-white rounded-2xl p-6 shadow-soft hover:shadow-hover transition-all duration-300 card-hover animate-slideInLeft border-l-4 border-green-500"
           style={{ animationDelay: "100ms" }}
         >
           <div className="flex items-center justify-between mb-2">
             <svg
-              className="w-8 h-8 sm:w-10 sm:h-10 text-green-500"
+              className="w-10 h-10 text-green-500"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -321,17 +197,17 @@ const Transactions = () => {
               />
             </svg>
           </div>
-          <p className="text-gray-600 text-xs sm:text-sm font-semibold mb-1">Approved</p>
-          <p className="text-2xl sm:text-3xl font-bold text-gray-800">{stats.approved}</p>
+          <p className="text-gray-600 text-sm font-semibold mb-1">Approved</p>
+          <p className="text-3xl font-bold text-gray-800">{stats.approved}</p>
         </div>
 
         <div
-          className="bg-white rounded-xl sm:rounded-2xl p-4 sm:p-6 shadow-soft hover:shadow-hover transition-all duration-300 card-hover animate-slideInLeft border-l-4 border-red-500"
+          className="bg-white rounded-2xl p-6 shadow-soft hover:shadow-hover transition-all duration-300 card-hover animate-slideInLeft border-l-4 border-red-500"
           style={{ animationDelay: "150ms" }}
         >
           <div className="flex items-center justify-between mb-2">
             <svg
-              className="w-8 h-8 sm:w-10 sm:h-10 text-red-500"
+              className="w-10 h-10 text-red-500"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -344,17 +220,17 @@ const Transactions = () => {
               />
             </svg>
           </div>
-          <p className="text-gray-600 text-xs sm:text-sm font-semibold mb-1">Rejected</p>
-          <p className="text-2xl sm:text-3xl font-bold text-gray-800">{stats.rejected}</p>
+          <p className="text-gray-600 text-sm font-semibold mb-1">Rejected</p>
+          <p className="text-3xl font-bold text-gray-800">{stats.rejected}</p>
         </div>
 
         <div
-          className="bg-gradient-to-br from-[#023e8a] to-[#0077b6] rounded-xl sm:rounded-2xl p-4 sm:p-6 shadow-soft hover:shadow-hover transition-all duration-300 card-hover animate-slideInLeft text-white border-l-4 border-white"
+          className="bg-gradient-to-br from-[#023e8a] to-[#0077b6] rounded-2xl p-6 shadow-soft hover:shadow-hover transition-all duration-300 card-hover animate-slideInLeft text-white border-l-4 border-white"
           style={{ animationDelay: "200ms" }}
         >
           <div className="flex items-center justify-between mb-2">
             <svg
-              className="w-8 h-8 sm:w-10 sm:h-10"
+              className="w-10 h-10"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -367,10 +243,10 @@ const Transactions = () => {
               />
             </svg>
           </div>
-          <p className="text-blue-100 text-xs sm:text-sm font-semibold mb-1">
+          <p className="text-blue-100 text-sm font-semibold mb-1">
             Total Amount
           </p>
-          <p className="text-2xl sm:text-3xl font-bold">
+          <p className="text-3xl font-bold">
             ₹{stats.totalAmount.toLocaleString()}
           </p>
         </div>
@@ -378,16 +254,16 @@ const Transactions = () => {
 
       {/* Filters and Search */}
       <div
-        className="bg-white rounded-xl sm:rounded-2xl shadow-soft p-4 sm:p-6 mb-6 sm:mb-8 animate-slideInUp"
+        className="bg-white rounded-2xl shadow-soft p-6 mb-8 animate-slideInUp"
         style={{ animationDelay: "250ms" }}
       >
-        <div className="flex flex-col gap-4">
+        <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
           <div className="flex flex-wrap gap-2">
             {["all", "pending", "approved", "rejected"].map((f) => (
               <button
                 key={f}
                 onClick={() => setFilter(f)}
-                className={`px-3 sm:px-5 py-2 sm:py-2.5 rounded-lg sm:rounded-xl text-xs sm:text-sm font-semibold transition-all duration-300 flex items-center gap-1.5 sm:gap-2 ${
+                className={`px-5 py-2.5 rounded-xl font-semibold transition-all duration-300 flex items-center gap-2 ${
                   filter === f
                     ? "bg-gradient-to-r from-[#023e8a] to-[#0077b6] text-white shadow-md scale-105"
                     : "bg-gray-100 text-gray-700 hover:bg-gray-200"
@@ -395,7 +271,7 @@ const Transactions = () => {
               >
                 {f === "all" && (
                   <svg
-                    className="w-3 h-3 sm:w-4 sm:h-4"
+                    className="w-4 h-4"
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
@@ -410,7 +286,7 @@ const Transactions = () => {
                 )}
                 {f === "pending" && (
                   <svg
-                    className="w-3 h-3 sm:w-4 sm:h-4"
+                    className="w-4 h-4"
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
@@ -425,7 +301,7 @@ const Transactions = () => {
                 )}
                 {f === "approved" && (
                   <svg
-                    className="w-3 h-3 sm:w-4 sm:h-4"
+                    className="w-4 h-4"
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
@@ -440,7 +316,7 @@ const Transactions = () => {
                 )}
                 {f === "rejected" && (
                   <svg
-                    className="w-3 h-3 sm:w-4 sm:h-4"
+                    className="w-4 h-4"
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
@@ -458,9 +334,9 @@ const Transactions = () => {
             ))}
           </div>
 
-          <div className="relative w-full">
+          <div className="relative w-full md:w-96">
             <svg
-              className="absolute left-3 sm:left-4 top-1/2 transform -translate-y-1/2 w-4 h-4 sm:w-5 sm:h-5 text-gray-400"
+              className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -477,7 +353,7 @@ const Transactions = () => {
               placeholder="Search by payee, purpose, or category..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 sm:pl-12 pr-3 sm:pr-4 py-2.5 sm:py-3 text-sm sm:text-base border-2 border-gray-200 rounded-lg sm:rounded-xl focus:ring-2 focus:ring-[#0077b6] focus:border-[#0077b6] transition-all duration-300"
+              className="w-full pl-12 pr-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-[#0077b6] focus:border-[#0077b6] transition-all duration-300"
             />
           </div>
         </div>
@@ -522,41 +398,40 @@ const Transactions = () => {
           </button>
         </div>
       ) : (
-        <div className="space-y-3 sm:space-y-4">
+        <div className="space-y-4">
           {filteredTransactions.map((transaction, index) => (
             <div
               key={transaction._id}
               style={{ animationDelay: `${index * 50}ms` }}
-              className="bg-white rounded-xl sm:rounded-2xl shadow-soft p-4 sm:p-6 hover:shadow-hover transition-all duration-300 card-hover animate-slideInRight border-l-4 border-transparent hover:border-[#0077b6]"
+              className="bg-white rounded-2xl shadow-soft p-6 hover:shadow-hover transition-all duration-300 card-hover animate-slideInRight border-l-4 border-transparent hover:border-[#0077b6]"
             >
-              <div className="flex flex-col gap-3 sm:gap-4 mb-3 sm:mb-4">
-                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex flex-wrap items-center gap-2 mb-2 sm:mb-3">
-                      <div className="flex items-center gap-1.5 sm:gap-2 bg-gradient-to-r from-[#023e8a]/10 to-[#0077b6]/10 px-2 sm:px-4 py-1.5 sm:py-2 rounded-lg sm:rounded-xl">
-                        <svg
-                          className="w-4 h-4 sm:w-5 sm:h-5 text-[#0077b6]"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"
-                          />
-                        </svg>
-                        <span className="font-bold text-xs sm:text-sm text-[#023e8a]">
-                          {transaction.category?.name}
-                        </span>
-                      </div>
-                      <span
-                        className={`px-2 sm:px-4 py-1.5 sm:py-2 rounded-lg sm:rounded-xl text-xs font-bold shadow-sm flex items-center gap-1 sm:gap-2 ${getStatusBadge(transaction.status)}`}
+              <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-4 mb-4">
+                <div className="flex-1">
+                  <div className="flex flex-wrap items-center gap-3 mb-3">
+                    <div className="flex items-center gap-2 bg-gradient-to-r from-[#023e8a]/10 to-[#0077b6]/10 px-4 py-2 rounded-xl">
+                      <svg
+                        className="w-5 h-5 text-[#0077b6]"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
                       >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"
+                        />
+                      </svg>
+                      <span className="font-bold text-[#023e8a]">
+                        {transaction.category?.name}
+                      </span>
+                    </div>
+                    <span
+                      className={`px-4 py-2 rounded-xl text-sm font-bold shadow-sm flex items-center gap-2 ${getStatusBadge(transaction.status)}`}
+                    >
                       {transaction.status === "approved" && (
                         <svg
-                          className="w-3 h-3 sm:w-4 sm:h-4"
+                          className="w-4 h-4"
                           fill="none"
                           stroke="currentColor"
                           viewBox="0 0 24 24"
@@ -571,7 +446,7 @@ const Transactions = () => {
                       )}
                       {transaction.status === "pending" && (
                         <svg
-                          className="w-3 h-3 sm:w-4 sm:h-4"
+                          className="w-4 h-4"
                           fill="none"
                           stroke="currentColor"
                           viewBox="0 0 24 24"
@@ -586,7 +461,7 @@ const Transactions = () => {
                       )}
                       {transaction.status === "rejected" && (
                         <svg
-                          className="w-3 h-3 sm:w-4 sm:h-4"
+                          className="w-4 h-4"
                           fill="none"
                           stroke="currentColor"
                           viewBox="0 0 24 24"
@@ -602,9 +477,9 @@ const Transactions = () => {
                       {transaction.status.toUpperCase()}
                     </span>
                     {transaction.hasGSTInvoice && (
-                      <span className="px-2 sm:px-4 py-1.5 sm:py-2 rounded-lg sm:rounded-xl text-xs font-bold bg-blue-100 text-blue-700 flex items-center gap-1 sm:gap-2">
+                      <span className="px-4 py-2 rounded-xl text-sm font-bold bg-blue-100 text-blue-700 flex items-center gap-2">
                         <svg
-                          className="w-3 h-3 sm:w-4 sm:h-4"
+                          className="w-4 h-4"
                           fill="none"
                           stroke="currentColor"
                           viewBox="0 0 24 24"
@@ -616,18 +491,17 @@ const Transactions = () => {
                             d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
                           />
                         </svg>
-                        <span className="hidden sm:inline">GST Invoice</span>
-                        <span className="sm:hidden">GST</span>
+                        GST Invoice
                       </span>
                     )}
                   </div>
-                  <p className="text-gray-800 font-semibold mb-1.5 sm:mb-2 text-base sm:text-lg mt-2">
+                  <p className="text-gray-800 font-semibold mb-2 text-lg">
                     {transaction.purpose}
                   </p>
-                  <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-xs sm:text-sm text-gray-600">
-                    <span className="flex items-center gap-1 sm:gap-2">
+                  <div className="flex flex-wrap items-center gap-4 text-sm text-gray-600">
+                    <span className="flex items-center gap-2">
                       <svg
-                        className="w-3.5 h-3.5 sm:w-4 sm:h-4"
+                        className="w-4 h-4"
                         fill="none"
                         stroke="currentColor"
                         viewBox="0 0 24 24"
@@ -639,11 +513,11 @@ const Transactions = () => {
                           d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
                         />
                       </svg>
-                      <span className="truncate max-w-[150px] sm:max-w-none">{transaction.payeeClientName}</span>
+                      {transaction.payeeClientName}
                     </span>
-                    <span className="flex items-center gap-1 sm:gap-2">
+                    <span className="flex items-center gap-2">
                       <svg
-                        className="w-3.5 h-3.5 sm:w-4 sm:h-4"
+                        className="w-4 h-4"
                         fill="none"
                         stroke="currentColor"
                         viewBox="0 0 24 24"
@@ -657,9 +531,9 @@ const Transactions = () => {
                       </svg>
                       {formatDate(transaction.paymentDate)}
                     </span>
-                    <span className="flex items-center gap-1 sm:gap-2">
+                    <span className="flex items-center gap-2">
                       <svg
-                        className="w-3.5 h-3.5 sm:w-4 sm:h-4"
+                        className="w-4 h-4"
                         fill="none"
                         stroke="currentColor"
                         viewBox="0 0 24 24"
@@ -675,12 +549,12 @@ const Transactions = () => {
                     </span>
                   </div>
                 </div>
-                <div className="text-left sm:text-right">
-                  <p className="text-2xl sm:text-3xl font-bold text-[#023e8a]">
+                <div className="text-right lg:text-right">
+                  <p className="text-3xl font-bold text-[#023e8a]">
                     ₹{transaction.postTaxAmount.toLocaleString("en-IN")}
                   </p>
                   {transaction.taxAmount > 0 && (
-                    <p className="text-xs sm:text-sm text-gray-500 mt-1">
+                    <p className="text-sm text-gray-500 mt-1">
                       Tax: ₹{transaction.taxAmount.toLocaleString("en-IN")}
                     </p>
                   )}
@@ -688,10 +562,10 @@ const Transactions = () => {
               </div>
 
               {/* Footer Actions */}
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between pt-3 sm:pt-4 border-t border-gray-100 gap-3 sm:gap-4">
-                <p className="text-xs sm:text-sm text-gray-500 flex items-center gap-1.5 sm:gap-2">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between pt-4 border-t border-gray-100 gap-4">
+                <p className="text-sm text-gray-500 flex items-center gap-2">
                   <svg
-                    className="w-3.5 h-3.5 sm:w-4 sm:h-4"
+                    className="w-4 h-4"
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
@@ -711,66 +585,46 @@ const Transactions = () => {
                 </p>
 
                 <div className="flex items-center gap-3">
-                  {(user?.role === "admin" || user?.role === "manager") &&
+                  {user?.role === "admin" &&
                     transaction.status === "pending" && (
                       <>
                         <button
                           onClick={() => handleReject(transaction._id)}
-                          disabled={processingId === transaction._id}
-                          className="px-5 py-2.5 bg-red-500 hover:bg-red-600 text-white rounded-xl text-sm font-bold transition-all duration-300 flex items-center gap-2 shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                          className="px-5 py-2.5 bg-red-500 hover:bg-red-600 text-white rounded-xl text-sm font-bold transition-all duration-300 flex items-center gap-2 shadow-md hover:shadow-lg"
                         >
-                          {processingId === transaction._id ? (
-                            <>
-                              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                              Processing...
-                            </>
-                          ) : (
-                            <>
-                              <svg
-                                className="w-4 h-4"
-                                fill="none"
-                                stroke="currentColor"
-                                viewBox="0 0 24 24"
-                              >
-                                <path
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  strokeWidth={2}
-                                  d="M6 18L18 6M6 6l12 12"
-                                />
-                              </svg>
-                              Reject
-                            </>
-                          )}
+                          <svg
+                            className="w-4 h-4"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M6 18L18 6M6 6l12 12"
+                            />
+                          </svg>
+                          Reject
                         </button>
                         <button
                           onClick={() => handleApprove(transaction._id)}
-                          disabled={processingId === transaction._id}
-                          className="px-5 py-2.5 bg-green-500 hover:bg-green-600 text-white rounded-xl text-sm font-bold transition-all duration-300 flex items-center gap-2 shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                          className="px-5 py-2.5 bg-green-500 hover:bg-green-600 text-white rounded-xl text-sm font-bold transition-all duration-300 flex items-center gap-2 shadow-md hover:shadow-lg"
                         >
-                          {processingId === transaction._id ? (
-                            <>
-                              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                              Processing...
-                            </>
-                          ) : (
-                            <>
-                              <svg
-                                className="w-4 h-4"
-                                fill="none"
-                                stroke="currentColor"
-                                viewBox="0 0 24 24"
-                              >
-                                <path
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  strokeWidth={2}
-                                  d="M5 13l4 4L19 7"
-                                />
-                              </svg>
-                              Approve
-                            </>
-                          )}
+                          <svg
+                            className="w-4 h-4"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M5 13l4 4L19 7"
+                            />
+                          </svg>
+                          Approve
                         </button>
                       </>
                     )}
@@ -804,123 +658,6 @@ const Transactions = () => {
                 )}
             </div>
           ))}
-        </div>
-      )}
-
-      {/* Confirmation Modal */}
-      {confirmModal.show && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 animate-slideInUp">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center">
-                <svg
-                  className="w-6 h-6 text-blue-600"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                  />
-                </svg>
-              </div>
-              <h3 className="text-xl font-bold text-gray-900">
-                Confirm Action
-              </h3>
-            </div>
-            <p className="text-gray-700 mb-6">{confirmModal.message}</p>
-            <div className="flex gap-3">
-              <button
-                onClick={() =>
-                  setConfirmModal({
-                    show: false,
-                    action: null,
-                    data: null,
-                    message: "",
-                  })
-                }
-                className="flex-1 px-4 py-2.5 border-2 border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 transition-all font-semibold"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() => {
-                  const { action, data } = confirmModal;
-                  setConfirmModal({
-                    show: false,
-                    action: null,
-                    data: null,
-                    message: "",
-                  });
-                  if (action === "approve") executeApprove(data.id);
-                }}
-                className="flex-1 px-4 py-2.5 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-xl hover:shadow-lg transition-all font-semibold"
-              >
-                Confirm
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Rejection Modal */}
-      {rejectModal.show && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 animate-slideInUp">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center">
-                <svg
-                  className="w-6 h-6 text-red-600"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M6 18L18 6M6 6l12 12"
-                  />
-                </svg>
-              </div>
-              <h3 className="text-xl font-bold text-gray-900">
-                Reject Transaction
-              </h3>
-            </div>
-            <div className="mb-6">
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                Rejection Reason <span className="text-red-500">*</span>
-              </label>
-              <textarea
-                value={rejectComment}
-                onChange={(e) => setRejectComment(e.target.value)}
-                placeholder="Enter the reason for rejection..."
-                className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-all resize-none"
-                rows="4"
-                autoFocus
-              />
-            </div>
-            <div className="flex gap-3">
-              <button
-                onClick={() => {
-                  setRejectModal({ show: false, transactionId: null });
-                  setRejectComment("");
-                }}
-                className="flex-1 px-4 py-2.5 border-2 border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 transition-all font-semibold"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={executeReject}
-                className="flex-1 px-4 py-2.5 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-xl hover:shadow-lg transition-all font-semibold"
-              >
-                Reject Transaction
-              </button>
-            </div>
-          </div>
         </div>
       )}
     </Layout>
