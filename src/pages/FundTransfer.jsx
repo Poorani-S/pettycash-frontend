@@ -573,7 +573,7 @@ const FundTransfer = () => {
                 <select
                   value={selectedClient}
                   onChange={handleClientChange}
-                  className="w-full px-5 py-4 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-[#0077b6] focus:border-[#0077b6] transition-all duration-300 font-medium hover:border-[#0077b6]"
+                  className="w-full px-5 py-4 pr-12 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-[#0077b6] focus:border-[#0077b6] transition-all duration-300 font-medium hover:border-[#0077b6]"
                   required
                 >
                   <option value="">-- Select User --</option>
@@ -595,7 +595,9 @@ const FundTransfer = () => {
                 {selectedClient && selectedClient !== "add_new" && (
                   <button
                     type="button"
-                    onClick={() => {
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
                       const client = clients.find(
                         (c) => c._id === selectedClient,
                       );
@@ -605,7 +607,7 @@ const FundTransfer = () => {
                         clientName: client?.name || "",
                       });
                     }}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 p-2 text-red-600 hover:text-red-800 hover:bg-red-50 rounded-lg transition-all"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 p-2 text-red-600 hover:text-red-800 hover:bg-red-50 rounded-lg transition-all z-10 pointer-events-auto"
                     title="Delete user"
                   >
                     <svg
