@@ -88,9 +88,11 @@ const FundTransfer = () => {
     }
   };
 
-  const handleClientChange = (e) => {
+  const handleClientChange = async (e) => {
     const value = e.target.value;
     if (value === "add_new") {
+      // Refetch clients to get latest data before showing modal
+      await fetchClients();
       setShowAddClientModal(true);
     } else {
       setSelectedClient(value);
@@ -119,7 +121,8 @@ const FundTransfer = () => {
     try {
       const response = await axios.post("/clients", newClient);
       const addedClient = response.data.data;
-      setClients([...clients, addedClient]);
+      // Refetch to ensure we have the latest client list
+      await fetchClients();
       setSelectedClient(addedClient._id);
       setSelectedClientDetails(addedClient);
       setShowAddClientModal(false);
@@ -141,7 +144,7 @@ const FundTransfer = () => {
         setBankName(addedClient.bankDetails.bankName || "");
         setAccountNumber(addedClient.bankDetails.accountNumber || "");
       }
-      toast.success("Client added successfully!");
+      toast.success(`Client "${addedClient.name}" added successfully!`);
     } catch (err) {
       toast.error(err.response?.data?.message || "Failed to add client");
     } finally {
@@ -155,9 +158,8 @@ const FundTransfer = () => {
         `/clients/${deleteClientModal.clientId}`,
       );
       if (response.data.success) {
-        setClients((prev) =>
-          prev.filter((c) => c._id !== deleteClientModal.clientId),
-        );
+        // Refetch to ensure we have the latest client list
+        await fetchClients();
         if (selectedClient === deleteClientModal.clientId) {
           setSelectedClient("");
           setSelectedClientDetails(null);

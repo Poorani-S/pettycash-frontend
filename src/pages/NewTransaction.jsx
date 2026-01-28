@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import axios from "../utils/axios";
 import Layout from "../components/Layout";
 import CameraCapture from "../components/CameraCapture";
+import { toast } from "react-toastify";
 
 const NewTransaction = () => {
   const navigate = useNavigate();
@@ -92,8 +93,10 @@ const NewTransaction = () => {
     }
   };
 
-  const handleClientSelect = (clientId) => {
+  const handleClientSelect = async (clientId) => {
     if (clientId === "add_new") {
+      // Refetch clients to get latest data before showing modal
+      await fetchClients();
       setShowAddClient(true);
       setFormData((prev) => ({ ...prev, clientId: "", payeeClientName: "" }));
     } else if (clientId) {
@@ -113,13 +116,14 @@ const NewTransaction = () => {
   const handleAddClient = async () => {
     try {
       if (!newClient.name.trim()) {
-        setError("Client name is required");
+        toast.error("Client name is required");
         return;
       }
       const response = await axios.post("/clients", newClient);
       if (response.data.success) {
         const addedClient = response.data.data;
-        setClients((prev) => [...prev, addedClient]);
+        // Refetch to ensure we have the latest client list
+        await fetchClients();
         setFormData((prev) => ({
           ...prev,
           clientId: addedClient._id,
@@ -135,11 +139,10 @@ const NewTransaction = () => {
           category: "vendor",
           address: "",
         });
-        setSuccess("Client added successfully!");
-        setTimeout(() => setSuccess(""), 3000);
+        toast.success(`Client "${addedClient.name}" added successfully!`);
       }
     } catch (err) {
-      setError(err.response?.data?.message || "Failed to add client");
+      toast.error(err.response?.data?.message || "Failed to add client");
     }
   };
 
@@ -147,9 +150,8 @@ const NewTransaction = () => {
     try {
       const response = await axios.delete(`/clients/${deleteConfirm.clientId}`);
       if (response.data.success) {
-        setClients((prev) =>
-          prev.filter((c) => c._id !== deleteConfirm.clientId),
-        );
+        // Refetch to ensure we have the latest client list
+        await fetchClients();
         if (formData.clientId === deleteConfirm.clientId) {
           setFormData((prev) => ({
             ...prev,
@@ -157,14 +159,12 @@ const NewTransaction = () => {
             payeeClientName: "",
           }));
         }
-        setSuccess(
+        toast.success(
           `Client "${deleteConfirm.clientName}" deleted successfully!`,
         );
-        setTimeout(() => setSuccess(""), 3000);
       }
     } catch (err) {
-      setError(err.response?.data?.message || "Failed to delete client");
-      setTimeout(() => setError(""), 3000);
+      toast.error(err.response?.data?.message || "Failed to delete client");
     } finally {
       setDeleteConfirm({ show: false, clientId: null, clientName: "" });
     }
