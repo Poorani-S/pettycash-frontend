@@ -208,17 +208,28 @@ const SubmitExpense = () => {
                     <button
                       type="button"
                       onClick={async () => {
-                        const catToDelete = categories.find(c => c._id === formData.category);
-                        if (window.confirm(`Delete category "${catToDelete?.name}"?\n\nThis will permanently remove this category.`)) {
+                        const catToDelete = categories.find(
+                          (c) => c._id === formData.category,
+                        );
+                        if (
+                          window.confirm(
+                            `Delete category "${catToDelete?.name}"?\n\nThis will permanently remove this category.`,
+                          )
+                        ) {
                           try {
-                            await axios.delete(`/categories/${formData.category}`);
-                            toast.success('Category deleted successfully');
-                            setFormData({ ...formData, category: '' });
+                            await axios.delete(
+                              `/categories/${formData.category}`,
+                            );
+                            toast.success("Category deleted successfully");
+                            setFormData({ ...formData, category: "" });
                             // Refresh categories
-                            const response = await axios.get('/categories');
+                            const response = await axios.get("/categories");
                             setCategories(response.data.data);
                           } catch (error) {
-                            toast.error(error.response?.data?.message || 'Failed to delete category');
+                            toast.error(
+                              error.response?.data?.message ||
+                                "Failed to delete category",
+                            );
                           }
                         }
                       }}

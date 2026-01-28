@@ -569,62 +569,61 @@ const FundTransfer = () => {
                 </svg>
                 Select User *
               </label>
-              <div className="relative">
-                <select
-                  value={selectedClient}
-                  onChange={handleClientChange}
-                  className="w-full px-5 py-4 pr-12 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-[#0077b6] focus:border-[#0077b6] transition-all duration-300 font-medium hover:border-[#0077b6]"
-                  required
-                >
-                  <option value="">-- Select User --</option>
-                  {clients.map((client) => (
-                    <option key={client._id} value={client._id}>
-                      {client.name}{" "}
-                      {client.bankDetails?.bankName
-                        ? `(${client.bankDetails.bankName})`
-                        : ""}
-                    </option>
-                  ))}
-                  <option
-                    value="add_new"
-                    className="font-semibold text-[#0077b6]"
-                  >
-                    ➕ Add New User
+              <select
+                value={selectedClient}
+                onChange={handleClientChange}
+                className="w-full px-5 py-4 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-[#0077b6] focus:border-[#0077b6] transition-all duration-300 font-medium hover:border-[#0077b6]"
+                required
+              >
+                <option value="">-- Select User --</option>
+                {clients.map((client) => (
+                  <option key={client._id} value={client._id}>
+                    {client.name}{" "}
+                    {client.bankDetails?.bankName
+                      ? `(${client.bankDetails.bankName})`
+                      : ""}
                   </option>
-                </select>
-                {selectedClient && selectedClient !== "add_new" && (
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      const client = clients.find(
-                        (c) => c._id === selectedClient,
-                      );
-                      setDeleteClientModal({
-                        show: true,
-                        clientId: selectedClient,
-                        clientName: client?.name || "",
-                      });
-                    }}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 p-2 text-red-600 hover:text-red-800 hover:bg-red-50 rounded-lg transition-all z-10 pointer-events-auto"
-                    title="Delete user"
+                ))}
+                <option
+                  value="add_new"
+                  className="font-semibold text-[#0077b6]"
+                >
+                  ➕ Add New User
+                </option>
+              </select>
+              
+              {selectedClient && selectedClient !== "add_new" && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    const client = clients.find(
+                      (c) => c._id === selectedClient,
+                    );
+                    setDeleteClientModal({
+                      show: true,
+                      clientId: selectedClient,
+                      clientName: client?.name || "",
+                    });
+                  }}
+                  className="mt-3 w-full px-4 py-3 bg-red-500 text-white hover:bg-red-600 rounded-xl transition-all font-bold flex items-center justify-center gap-2"
+                >
+                  <svg
+                    className="w-5 h-5"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
                   >
-                    <svg
-                      className="w-5 h-5"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                      />
-                    </svg>
-                  </button>
-                )}
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                    />
+                  </svg>
+                  Delete Selected User
+                </button>
+              )}
               </div>
             </div>
 

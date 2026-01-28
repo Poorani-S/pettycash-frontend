@@ -500,14 +500,21 @@ const Reports = () => {
                   <button
                     type="button"
                     onClick={async () => {
-                      if (window.confirm(`Delete category "${categories.find(c => c._id === selectedCategory)?.name}"?\n\nThis will permanently remove this category.`)) {
+                      if (
+                        window.confirm(
+                          `Delete category "${categories.find((c) => c._id === selectedCategory)?.name}"?\n\nThis will permanently remove this category.`,
+                        )
+                      ) {
                         try {
                           await axios.delete(`/categories/${selectedCategory}`);
-                          toast.success('Category deleted successfully');
-                          setSelectedCategory('');
+                          toast.success("Category deleted successfully");
+                          setSelectedCategory("");
                           fetchCategories();
                         } catch (error) {
-                          toast.error(error.response?.data?.message || 'Failed to delete category');
+                          toast.error(
+                            error.response?.data?.message ||
+                              "Failed to delete category",
+                          );
                         }
                       }
                     }}
@@ -614,19 +621,28 @@ const Reports = () => {
                       </option>
                     )}
                   </select>
-                  {selectedUser && selectedUser !== 'add_new' && (
+                  {selectedUser && selectedUser !== "add_new" && (
                     <button
                       type="button"
                       onClick={async () => {
-                        const userToDelete = users.find(u => u._id === selectedUser);
-                        if (window.confirm(`Delete user "${userToDelete?.name}"?\n\nThis will permanently remove this user from the system.`)) {
+                        const userToDelete = users.find(
+                          (u) => u._id === selectedUser,
+                        );
+                        if (
+                          window.confirm(
+                            `Delete user "${userToDelete?.name}"?\n\nThis will permanently remove this user from the system.`,
+                          )
+                        ) {
                           try {
                             await axios.delete(`/users/${selectedUser}`);
-                            toast.success('User deleted successfully');
-                            setSelectedUser('');
+                            toast.success("User deleted successfully");
+                            setSelectedUser("");
                             fetchUsers(true);
                           } catch (error) {
-                            toast.error(error.response?.data?.message || 'Failed to delete user');
+                            toast.error(
+                              error.response?.data?.message ||
+                                "Failed to delete user",
+                            );
                           }
                         }
                       }}

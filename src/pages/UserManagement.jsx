@@ -1115,7 +1115,8 @@ function UserManagement() {
                             .filter((u) => u.role === "manager")
                             .map((manager) => (
                               <option key={manager._id} value={manager._id}>
-                                {manager.name} - {manager.department || "No Dept"}
+                                {manager.name} -{" "}
+                                {manager.department || "No Dept"}
                               </option>
                             ))}
                         </select>
@@ -1123,15 +1124,26 @@ function UserManagement() {
                           <button
                             type="button"
                             onClick={async () => {
-                              const managerToDelete = users.find(u => u._id === formData.managerId);
-                              if (window.confirm(`Delete manager "${managerToDelete?.name}"?\n\nThis will permanently remove this user from the system.`)) {
+                              const managerToDelete = users.find(
+                                (u) => u._id === formData.managerId,
+                              );
+                              if (
+                                window.confirm(
+                                  `Delete manager "${managerToDelete?.name}"?\n\nThis will permanently remove this user from the system.`,
+                                )
+                              ) {
                                 try {
-                                  await axios.delete(`/users/${formData.managerId}`);
-                                  toast.success('Manager deleted successfully');
-                                  setFormData({ ...formData, managerId: '' });
+                                  await axios.delete(
+                                    `/users/${formData.managerId}`,
+                                  );
+                                  toast.success("Manager deleted successfully");
+                                  setFormData({ ...formData, managerId: "" });
                                   fetchUsers();
                                 } catch (error) {
-                                  toast.error(error.response?.data?.message || 'Failed to delete manager');
+                                  toast.error(
+                                    error.response?.data?.message ||
+                                      "Failed to delete manager",
+                                  );
                                 }
                               }
                             }}
