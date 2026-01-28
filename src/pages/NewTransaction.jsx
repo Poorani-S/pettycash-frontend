@@ -13,6 +13,11 @@ const NewTransaction = () => {
   const [success, setSuccess] = useState("");
   const [showAddClient, setShowAddClient] = useState(false);
   const [userBankDetails, setUserBankDetails] = useState(null);
+  const [deleteConfirm, setDeleteConfirm] = useState({
+    show: false,
+    clientId: null,
+    clientName: "",
+  });
 
   const [formData, setFormData] = useState({
     category: "",
@@ -135,6 +140,33 @@ const NewTransaction = () => {
       }
     } catch (err) {
       setError(err.response?.data?.message || "Failed to add client");
+    }
+  };
+
+  const handleDeleteClient = async () => {
+    try {
+      const response = await axios.delete(`/clients/${deleteConfirm.clientId}`);
+      if (response.data.success) {
+        setClients((prev) =>
+          prev.filter((c) => c._id !== deleteConfirm.clientId),
+        );
+        if (formData.clientId === deleteConfirm.clientId) {
+          setFormData((prev) => ({
+            ...prev,
+            clientId: "",
+            payeeClientName: "",
+          }));
+        }
+        setSuccess(
+          `Client "${deleteConfirm.clientName}" deleted successfully!`,
+        );
+        setTimeout(() => setSuccess(""), 3000);
+      }
+    } catch (err) {
+      setError(err.response?.data?.message || "Failed to delete client");
+      setTimeout(() => setError(""), 3000);
+    } finally {
+      setDeleteConfirm({ show: false, clientId: null, clientName: "" });
     }
   };
 
@@ -288,13 +320,13 @@ const NewTransaction = () => {
   return (
     <Layout>
       {/* Page Header */}
-      <div className="mb-8 animate-slideInUp">
-        <div className="bg-gradient-to-r from-[#023e8a] to-[#0077b6] rounded-3xl p-8 text-white shadow-2xl">
+      <div className="mb-6 sm:mb-8 animate-slideInUp">
+        <div className="bg-gradient-to-r from-[#023e8a] to-[#0077b6] rounded-2xl sm:rounded-3xl p-4 sm:p-6 md:p-8 text-white shadow-2xl">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-4xl font-bold mb-2 flex items-center gap-3">
+              <h1 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold mb-1 sm:mb-2 flex items-center gap-2 sm:gap-3">
                 <svg
-                  className="w-10 h-10"
+                  className="w-7 h-7 sm:w-8 sm:h-8 md:w-10 md:h-10"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -308,7 +340,7 @@ const NewTransaction = () => {
                 </svg>
                 Submit New Expense
               </h1>
-              <p className="text-blue-100 text-lg">
+              <p className="text-blue-100 text-sm sm:text-base md:text-lg">
                 Fill in the expense details below for approval
               </p>
             </div>
@@ -427,12 +459,12 @@ const NewTransaction = () => {
 
       <form
         onSubmit={handleSubmit}
-        className="bg-white rounded-2xl shadow-soft p-8 animate-slideInUp"
+        className="bg-white rounded-xl sm:rounded-2xl shadow-soft p-4 sm:p-6 md:p-8 animate-slideInUp"
         style={{ animationDelay: "100ms" }}
       >
         {/* Form Title */}
         <div className="mb-8 pb-6 border-b border-gray-200">
-          <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
+          <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-gray-800 flex items-center gap-2">
             <svg
               className="w-7 h-7 text-[#0077b6]"
               fill="none"
@@ -507,10 +539,10 @@ const NewTransaction = () => {
           </label>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 mb-4 sm:mb-6">
           {/* Invoice Date */}
           <div>
-            <label className="block text-sm font-bold text-gray-700 mb-3 flex items-center gap-2">
+            <label className="block text-sm font-bold text-gray-700 mb-2 sm:mb-3 flex items-center gap-2">
               <svg
                 className="w-5 h-5 text-[#0077b6]"
                 fill="none"
@@ -554,22 +586,55 @@ const NewTransaction = () => {
               </svg>
               Payee/Client *
             </label>
-            <select
-              name="clientId"
-              value={formData.clientId}
-              onChange={(e) => handleClientSelect(e.target.value)}
-              className="w-full px-5 py-4 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-[#0077b6] focus:border-[#0077b6] transition-all duration-300 hover:border-[#0077b6]"
-              required
-            >
-              <option value="">Select Client/Payee</option>
-              {clients.map((client) => (
-                <option key={client._id} value={client._id}>
-                  {client.name}{" "}
-                  {client.gstNumber ? `(${client.gstNumber})` : ""}
-                </option>
-              ))}
-              <option value="add_new">➕ Add New Client</option>
-            </select>
+            <div className="relative">
+              <select
+                name="clientId"
+                value={formData.clientId}
+                onChange={(e) => handleClientSelect(e.target.value)}
+                className="w-full px-5 py-4 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-[#0077b6] focus:border-[#0077b6] transition-all duration-300 hover:border-[#0077b6]"
+                required
+              >
+                <option value="">Select Client/Payee</option>
+                {clients.map((client) => (
+                  <option key={client._id} value={client._id}>
+                    {client.name}{" "}
+                    {client.gstNumber ? `(${client.gstNumber})` : ""}
+                  </option>
+                ))}
+                <option value="add_new">➕ Add New Client</option>
+              </select>
+              {formData.clientId && formData.clientId !== "add_new" && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const client = clients.find(
+                      (c) => c._id === formData.clientId,
+                    );
+                    setDeleteConfirm({
+                      show: true,
+                      clientId: formData.clientId,
+                      clientName: client?.name || "",
+                    });
+                  }}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 p-2 text-red-600 hover:text-red-800 hover:bg-red-50 rounded-lg transition-all"
+                  title="Delete client"
+                >
+                  <svg
+                    className="w-5 h-5"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                    />
+                  </svg>
+                </button>
+              )}
+            </div>
           </div>
         </div>
 
@@ -613,7 +678,7 @@ const NewTransaction = () => {
                 </svg>
               </button>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
               <input
                 type="text"
                 placeholder="Client Name *"
@@ -621,7 +686,7 @@ const NewTransaction = () => {
                 onChange={(e) =>
                   setNewClient({ ...newClient, name: e.target.value })
                 }
-                className="px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-[#0077b6] focus:border-[#0077b6]"
+                className="px-3 sm:px-4 py-2.5 sm:py-3 text-sm sm:text-base border-2 border-gray-200 rounded-lg sm:rounded-xl focus:ring-2 focus:ring-[#0077b6] focus:border-[#0077b6]"
                 required
               />
               <input
@@ -1168,6 +1233,59 @@ const NewTransaction = () => {
           </button>
         </div>
       </form>
+
+      {/* Delete Confirmation Modal */}
+      {deleteConfirm.show && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center">
+                <svg
+                  className="w-6 h-6 text-red-600"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                  />
+                </svg>
+              </div>
+              <h3 className="text-xl font-bold text-gray-900">
+                Delete Client?
+              </h3>
+            </div>
+            <p className="text-gray-600 mb-6">
+              Are you sure you want to delete{" "}
+              <strong>"{deleteConfirm.clientName}"</strong>? This action cannot
+              be undone.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() =>
+                  setDeleteConfirm({
+                    show: false,
+                    clientId: null,
+                    clientName: "",
+                  })
+                }
+                className="flex-1 px-4 py-2 border-2 border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-semibold transition-all"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDeleteClient}
+                className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-semibold transition-all"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </Layout>
   );
 };

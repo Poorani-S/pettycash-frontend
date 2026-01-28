@@ -34,6 +34,11 @@ const FundTransfer = () => {
     action: null,
     message: "",
   });
+  const [deleteClientModal, setDeleteClientModal] = useState({
+    show: false,
+    clientId: null,
+    clientName: "",
+  });
   const [newClient, setNewClient] = useState({
     name: "",
     email: "",
@@ -136,10 +141,37 @@ const FundTransfer = () => {
         setBankName(addedClient.bankDetails.bankName || "");
         setAccountNumber(addedClient.bankDetails.accountNumber || "");
       }
+      toast.success("Client added successfully!");
     } catch (err) {
       toast.error(err.response?.data?.message || "Failed to add client");
     } finally {
       setNewClientLoading(false);
+    }
+  };
+
+  const handleDeleteClient = async () => {
+    try {
+      const response = await axios.delete(
+        `/clients/${deleteClientModal.clientId}`,
+      );
+      if (response.data.success) {
+        setClients((prev) =>
+          prev.filter((c) => c._id !== deleteClientModal.clientId),
+        );
+        if (selectedClient === deleteClientModal.clientId) {
+          setSelectedClient("");
+          setSelectedClientDetails(null);
+          setBankName("");
+          setAccountNumber("");
+        }
+        toast.success(
+          `User "${deleteClientModal.clientName}" deleted successfully!`,
+        );
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Failed to delete user");
+    } finally {
+      setDeleteClientModal({ show: false, clientId: null, clientName: "" });
     }
   };
 
@@ -537,28 +569,61 @@ const FundTransfer = () => {
                 </svg>
                 Select User *
               </label>
-              <select
-                value={selectedClient}
-                onChange={handleClientChange}
-                className="w-full px-5 py-4 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-[#0077b6] focus:border-[#0077b6] transition-all duration-300 font-medium hover:border-[#0077b6]"
-                required
-              >
-                <option value="">-- Select User --</option>
-                {clients.map((client) => (
-                  <option key={client._id} value={client._id}>
-                    {client.name}{" "}
-                    {client.bankDetails?.bankName
-                      ? `(${client.bankDetails.bankName})`
-                      : ""}
-                  </option>
-                ))}
-                <option
-                  value="add_new"
-                  className="font-semibold text-[#0077b6]"
+              <div className="relative">
+                <select
+                  value={selectedClient}
+                  onChange={handleClientChange}
+                  className="w-full px-5 py-4 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-[#0077b6] focus:border-[#0077b6] transition-all duration-300 font-medium hover:border-[#0077b6]"
+                  required
                 >
-                  ➕ Add New User
-                </option>
-              </select>
+                  <option value="">-- Select User --</option>
+                  {clients.map((client) => (
+                    <option key={client._id} value={client._id}>
+                      {client.name}{" "}
+                      {client.bankDetails?.bankName
+                        ? `(${client.bankDetails.bankName})`
+                        : ""}
+                    </option>
+                  ))}
+                  <option
+                    value="add_new"
+                    className="font-semibold text-[#0077b6]"
+                  >
+                    ➕ Add New User
+                  </option>
+                </select>
+                {selectedClient && selectedClient !== "add_new" && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const client = clients.find(
+                        (c) => c._id === selectedClient,
+                      );
+                      setDeleteClientModal({
+                        show: true,
+                        clientId: selectedClient,
+                        clientName: client?.name || "",
+                      });
+                    }}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 p-2 text-red-600 hover:text-red-800 hover:bg-red-50 rounded-lg transition-all"
+                    title="Delete user"
+                  >
+                    <svg
+                      className="w-5 h-5"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                      />
+                    </svg>
+                  </button>
+                )}
+              </div>
             </div>
 
             {/* Transfer Type */}
@@ -1477,6 +1542,57 @@ const FundTransfer = () => {
                 className="flex-1 px-4 py-2.5 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-xl hover:shadow-lg transition-all font-semibold"
               >
                 Confirm
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Client Confirmation Modal */}
+      {deleteClientModal.show && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6 animate-slideInUp">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center">
+                <svg
+                  className="w-6 h-6 text-red-600"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                  />
+                </svg>
+              </div>
+              <h3 className="text-xl font-bold text-gray-900">Delete User?</h3>
+            </div>
+            <p className="text-gray-600 mb-6">
+              Are you sure you want to delete{" "}
+              <strong>"{deleteClientModal.clientName}"</strong>? This action
+              cannot be undone.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() =>
+                  setDeleteClientModal({
+                    show: false,
+                    clientId: null,
+                    clientName: "",
+                  })
+                }
+                className="flex-1 px-4 py-2 border-2 border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-semibold transition-all"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDeleteClient}
+                className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-semibold transition-all"
+              >
+                Delete
               </button>
             </div>
           </div>
