@@ -357,11 +357,11 @@ const FundTransfer = () => {
   return (
     <Layout>
       {/* Header Banner */}
-      <div className="bg-gradient-to-r from-[#023e8a] via-[#0077b6] to-[#00b4d8] rounded-2xl p-8 mb-8 text-white shadow-xl animate-fadeIn">
-        <div className="flex items-center gap-4">
-          <div className="bg-white/20 backdrop-blur-sm rounded-2xl p-4">
+      <div className="bg-gradient-to-r from-[#023e8a] via-[#0077b6] to-[#00b4d8] rounded-xl sm:rounded-2xl p-4 sm:p-6 md:p-8 mb-6 sm:mb-8 text-white shadow-xl animate-fadeIn">
+        <div className="flex items-center gap-3 sm:gap-4">
+          <div className="bg-white/20 backdrop-blur-sm rounded-xl sm:rounded-2xl p-3 sm:p-4">
             <svg
-              className="w-12 h-12"
+              className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -375,10 +375,10 @@ const FundTransfer = () => {
             </svg>
           </div>
           <div>
-            <h1 className="text-3xl font-bold mb-2">
+            <h1 className="text-xl sm:text-2xl md:text-3xl font-bold mb-1 sm:mb-2">
               Fund Transfer Management
             </h1>
-            <p className="text-white/90 text-sm">
+            <p className="text-white/90 text-xs sm:text-sm">
               Add funds to petty cash via Bank Transfer or Cash Disbursement
             </p>
           </div>
@@ -387,19 +387,19 @@ const FundTransfer = () => {
 
       {/* Statistics Cards */}
       {stats && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <div className="bg-white rounded-2xl p-6 shadow-soft hover:shadow-hover transition-all duration-300 border-l-4 border-purple-500 animate-slideInLeft card-hover">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6 mb-6 sm:mb-8">
+          <div className="bg-white rounded-xl sm:rounded-2xl p-4 sm:p-6 shadow-soft hover:shadow-hover transition-all duration-300 border-l-4 border-purple-500 animate-slideInLeft card-hover">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-gray-600 text-sm font-semibold uppercase tracking-wide">
+                <p className="text-gray-600 text-xs sm:text-sm font-semibold uppercase tracking-wide">
                   Total Expense
                 </p>
-                <p className="text-3xl font-bold text-[#023e8a] mt-2">
+                <p className="text-2xl sm:text-3xl font-bold text-[#023e8a] mt-1 sm:mt-2">
                   ₹{stats.overall.total.toLocaleString("en-IN")}
                 </p>
-                <p className="text-gray-500 text-sm mt-1 flex items-center gap-1">
+                <p className="text-gray-500 text-xs sm:text-sm mt-1 flex items-center gap-1">
                   <svg
-                    className="w-4 h-4"
+                    className="w-3 h-3 sm:w-4 sm:h-4"
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
@@ -414,9 +414,9 @@ const FundTransfer = () => {
                   {stats.overall.count} transfers
                 </p>
               </div>
-              <div className="bg-gradient-to-br from-purple-100 to-purple-200 rounded-2xl p-4">
+              <div className="bg-gradient-to-br from-purple-100 to-purple-200 rounded-xl sm:rounded-2xl p-3 sm:p-4">
                 <svg
-                  className="w-10 h-10 text-purple-600"
+                  className="w-8 h-8 sm:w-10 sm:h-10 text-purple-600"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -492,13 +492,13 @@ const FundTransfer = () => {
         </div>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8">
         {/* Add Funds Form */}
-        <div className="bg-white rounded-2xl shadow-soft p-8 animate-slideInLeft">
-          <h2 className="text-2xl font-bold text-gray-800 mb-6 flex items-center gap-3">
-            <div className="bg-gradient-to-br from-[#023e8a] to-[#0077b6] text-white rounded-xl p-2">
+        <div className="bg-white rounded-xl sm:rounded-2xl shadow-soft p-4 sm:p-6 md:p-8 animate-slideInLeft">
+          <h2 className="text-xl sm:text-2xl font-bold text-gray-800 mb-4 sm:mb-6 flex items-center gap-2 sm:gap-3">
+            <div className="bg-gradient-to-br from-[#023e8a] to-[#0077b6] text-white rounded-xl p-1.5 sm:p-2">
               <svg
-                className="w-6 h-6"
+                className="w-5 h-5 sm:w-6 sm:h-6"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -515,9 +515,9 @@ const FundTransfer = () => {
           </h2>
 
           {error && (
-            <div className="bg-red-50 border-l-4 border-red-500 text-red-700 px-4 py-3 rounded-xl mb-4 flex items-center gap-3 animate-slideInRight">
+            <div className="bg-red-50 border-l-4 border-red-500 text-red-700 px-3 sm:px-4 py-2.5 sm:py-3 rounded-xl mb-3 sm:mb-4 flex items-center gap-2 sm:gap-3 animate-slideInRight">
               <svg
-                className="w-5 h-5"
+                className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -534,9 +534,9 @@ const FundTransfer = () => {
           )}
 
           {success && (
-            <div className="bg-green-50 border-l-4 border-green-500 text-green-700 px-4 py-3 rounded-xl mb-4 flex items-center gap-3 animate-slideInRight">
+            <div className="bg-green-50 border-l-4 border-green-500 text-green-700 px-3 sm:px-4 py-2.5 sm:py-3 rounded-xl mb-3 sm:mb-4 flex items-center gap-2 sm:gap-3 animate-slideInRight">
               <svg
-                className="w-5 h-5"
+                className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"

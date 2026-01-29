@@ -126,13 +126,14 @@ const Transactions = () => {
                 d="M12 4v16m8-8H4"
               />
             </svg>
-            <span className="font-semibold">New Expense</span>
+            <span className="font-semibold hidden sm:inline">New Expense</span>
+            <span className="font-semibold sm:hidden">New</span>
           </button>
         </div>
       </div>
 
       {/* Statistics Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-6 mb-8">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4 md:gap-6 mb-6 sm:mb-8">
         <div className="bg-white rounded-2xl p-6 shadow-soft hover:shadow-hover transition-all duration-300 card-hover animate-slideInLeft border-l-4 border-blue-500">
           <div className="flex items-center justify-between mb-2">
             <svg
