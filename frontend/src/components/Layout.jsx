@@ -4,6 +4,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 const Layout = ({ children }) => {
   const navigate = useNavigate();
   const location = useLocation();
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [user, setUser] = useState(() => {
     const userData = localStorage.getItem("user");
     return userData ? JSON.parse(userData) : null;
@@ -13,6 +14,10 @@ const Layout = ({ children }) => {
     localStorage.removeItem("token");
     localStorage.removeItem("user");
     navigate("/login");
+  };
+
+  const closeSidebar = () => {
+    setIsSidebarOpen(false);
   };
 
   const menuItems = [
@@ -152,8 +157,20 @@ const Layout = ({ children }) => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-white">
+      {/* Mobile Overlay */}
+      {isSidebarOpen && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden"
+          onClick={closeSidebar}
+        ></div>
+      )}
+
       {/* Sidebar */}
-      <aside className="fixed top-0 left-0 h-full w-64 bg-gradient-to-b from-[#023e8a] to-[#0077b6] text-white z-50 shadow-2xl overflow-hidden">
+      <aside
+        className={`fixed top-0 left-0 h-full w-64 bg-gradient-to-b from-[#023e8a] to-[#0077b6] text-white z-50 shadow-2xl overflow-hidden transition-transform duration-300 ease-in-out ${
+          isSidebarOpen ? "translate-x-0" : "-translate-x-full"
+        } lg:translate-x-0`}
+      >
         {/* Logo Section */}
         <div className="p-6 border-b border-white/20">
           <div className="flex items-center space-x-3">
@@ -241,7 +258,10 @@ const Layout = ({ children }) => {
           {filteredMenuItems.map((item) => (
             <button
               key={item.path}
-              onClick={() => navigate(item.path)}
+              onClick={() => {
+                navigate(item.path);
+                closeSidebar();
+              }}
               className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl group ${
                 isActive(item.path)
                   ? "bg-white text-[#023e8a] shadow-lg"
@@ -285,15 +305,36 @@ const Layout = ({ children }) => {
       </aside>
 
       {/* Main Content */}
-      <main className="ml-64">
+      <main className="lg:ml-64">
         {/* Top Bar */}
         <header className="bg-white/80 backdrop-blur-md shadow-sm border-b border-gray-200 sticky top-0 z-40">
-          <div className="px-6 py-4">
-            <div className="flex items-center justify-end">
-              <div className="flex items-center space-x-4">
-                <div className="hidden md:flex items-center space-x-2 bg-gradient-to-r from-[#023e8a] to-[#0077b6] text-white px-4 py-2 rounded-full text-sm font-medium shadow-md">
+          <div className="px-4 sm:px-6 py-3 sm:py-4">
+            <div className="flex items-center justify-between">
+              {/* Mobile Menu Button */}
+              <button
+                onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+                className="lg:hidden p-2 rounded-lg hover:bg-gray-100 transition-colors"
+              >
+                <svg
+                  className="w-6 h-6 text-gray-700"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M4 6h16M4 12h16M4 18h16"
+                  />
+                </svg>
+              </button>
+
+              {/* Right side content */}
+              <div className="flex items-center space-x-2 sm:space-x-4 ml-auto">
+                <div className="hidden sm:flex items-center space-x-2 bg-gradient-to-r from-[#023e8a] to-[#0077b6] text-white px-3 sm:px-4 py-2 rounded-full text-xs sm:text-sm font-medium shadow-md">
                   <svg
-                    className="w-5 h-5"
+                    className="w-4 h-4 sm:w-5 sm:h-5"
                     fill="currentColor"
                     viewBox="0 0 20 20"
                   >
@@ -303,7 +344,7 @@ const Layout = ({ children }) => {
                       clipRule="evenodd"
                     />
                   </svg>
-                  <span>
+                  <span className="hidden md:inline">
                     {new Date().toLocaleDateString("en-US", {
                       weekday: "long",
                       year: "numeric",
@@ -311,9 +352,15 @@ const Layout = ({ children }) => {
                       day: "numeric",
                     })}
                   </span>
+                  <span className="md:hidden">
+                    {new Date().toLocaleDateString("en-US", {
+                      month: "short",
+                      day: "numeric",
+                    })}
+                  </span>
                 </div>
 
-                <div className="flex items-center space-x-2 bg-green-50 text-green-700 px-4 py-2 rounded-full text-sm font-medium">
+                <div className="flex items-center space-x-2 bg-green-50 text-green-700 px-3 sm:px-4 py-2 rounded-full text-xs sm:text-sm font-medium">
                   <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
                   <span>Online</span>
                 </div>
@@ -323,7 +370,7 @@ const Layout = ({ children }) => {
         </header>
 
         {/* Page Content */}
-        <div className="p-6 animate-fadeIn">{children}</div>
+        <div className="p-4 sm:p-6 animate-fadeIn">{children}</div>
       </main>
     </div>
   );
