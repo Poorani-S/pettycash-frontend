@@ -120,26 +120,26 @@ function Login() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#023e8a] via-[#0077b6] to-[#00b4d8] flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-[#023e8a] via-[#0077b6] to-[#00b4d8] flex items-center justify-center p-3 sm:p-4">
       <div className="absolute inset-0 overflow-hidden">
         <div className="absolute -top-40 -right-40 w-80 h-80 bg-white/10 rounded-full blur-3xl animate-pulse"></div>
         <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-cyan-400/10 rounded-full blur-3xl animate-pulse"></div>
       </div>
 
-      <div className="bg-white rounded-3xl shadow-2xl p-10 w-full max-w-md relative z-10 animate-slideInUp">
-        <div className="text-center mb-8">
+      <div className="bg-white rounded-2xl sm:rounded-3xl shadow-2xl p-6 sm:p-8 md:p-10 w-full max-w-md relative z-10 animate-slideInUp">
+        <div className="text-center mb-6 sm:mb-8">
           <img
             src="/kambaa-logo.png"
             alt="Logo"
-            className="h-20 w-auto mx-auto mb-4 drop-shadow-lg"
+            className="h-16 sm:h-20 w-auto mx-auto mb-3 sm:mb-4 drop-shadow-lg"
             onError={(e) => {
               e.target.style.display = "none";
             }}
           />
-          <h1 className="text-3xl font-bold bg-gradient-to-r from-[#023e8a] to-[#0077b6] bg-clip-text text-transparent mb-2">
+          <h1 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-[#023e8a] to-[#0077b6] bg-clip-text text-transparent mb-2">
             Petty Cash Management
           </h1>
-          <p className="text-gray-600 text-sm">
+          <p className="text-gray-600 text-xs sm:text-sm">
             {mode === "password"
               ? "Sign in to your account"
               : step === 1
@@ -149,25 +149,28 @@ function Login() {
         </div>
 
         {error && (
-          <div className="mb-6 p-4 bg-red-50 border-l-4 border-red-500 rounded-lg">
-            <p className="text-red-700 text-sm">{error}</p>
+          <div className="mb-4 sm:mb-6 p-3 sm:p-4 bg-red-50 border-l-4 border-red-500 rounded-lg">
+            <p className="text-red-700 text-xs sm:text-sm">{error}</p>
           </div>
         )}
         {success && (
-          <div className="mb-6 p-4 bg-green-50 border-l-4 border-green-500 rounded-lg">
-            <p className="text-green-700 text-sm">{success}</p>
+          <div className="mb-4 sm:mb-6 p-3 sm:p-4 bg-green-50 border-l-4 border-green-500 rounded-lg">
+            <p className="text-green-700 text-xs sm:text-sm">{success}</p>
           </div>
         )}
 
         {mode === "password" && (
-          <form onSubmit={handlePasswordLogin} className="space-y-5">
+          <form
+            onSubmit={handlePasswordLogin}
+            className="space-y-4 sm:space-y-5"
+          >
             <div>
-              <label className="block text-[#023e8a] font-semibold mb-2 text-sm">
+              <label className="block text-[#023e8a] font-semibold mb-2 text-xs sm:text-sm">
                 Email Address
               </label>
               <input
                 type="email"
-                className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-[#0077b6] focus:border-[#0077b6]"
+                className="w-full px-3 sm:px-4 py-2.5 sm:py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-[#0077b6] focus:border-[#0077b6] text-sm sm:text-base"
                 placeholder="your.email@company.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
@@ -176,13 +179,13 @@ function Login() {
               />
             </div>
             <div>
-              <label className="block text-[#023e8a] font-semibold mb-2 text-sm">
+              <label className="block text-[#023e8a] font-semibold mb-2 text-xs sm:text-sm">
                 Password
               </label>
               <div className="relative">
                 <input
                   type={showPassword ? "text" : "password"}
-                  className="w-full px-4 py-3 pr-11 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-[#0077b6] focus:border-[#0077b6]"
+                  className="w-full px-3 sm:px-4 py-2.5 sm:py-3 pr-11 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-[#0077b6] focus:border-[#0077b6] text-sm sm:text-base"
                   placeholder="Enter your password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
@@ -217,14 +220,14 @@ function Login() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-gradient-to-r from-[#023e8a] to-[#0077b6] text-white font-bold py-3.5 rounded-xl shadow-lg hover:shadow-xl disabled:opacity-50"
+              className="w-full bg-gradient-to-r from-[#023e8a] to-[#0077b6] text-white font-bold py-3 sm:py-3.5 rounded-xl shadow-lg hover:shadow-xl disabled:opacity-50 text-sm sm:text-base"
             >
               {loading ? "Signing in..." : "Sign In"}
             </button>
 
             {showOTPFallback && (
-              <div className="mt-4 p-4 bg-amber-50 border-l-4 border-amber-500 rounded-lg">
-                <p className="text-amber-800 text-sm mb-3">
+              <div className="mt-3 sm:mt-4 p-3 sm:p-4 bg-amber-50 border-l-4 border-amber-500 rounded-lg">
+                <p className="text-amber-800 text-xs sm:text-sm mb-3">
                   ⚠️ You have {failedAttempts} failed login attempt(s). Admin
                   has been notified.
                 </p>

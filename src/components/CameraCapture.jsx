@@ -1,4 +1,5 @@
 import { useState, useRef } from "react";
+import { toast } from "react-toastify";
 
 const CameraCapture = ({ onCapture, label = "Capture Receipt" }) => {
   const [cameraActive, setCameraActive] = useState(false);
@@ -22,7 +23,7 @@ const CameraCapture = ({ onCapture, label = "Capture Receipt" }) => {
       }
     } catch (error) {
       console.error("Error accessing camera:", error);
-      alert(
+      toast.error(
         "Unable to access camera. Please check permissions or use file upload.",
       );
     }

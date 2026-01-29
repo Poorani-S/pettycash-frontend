@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Layout from "../components/Layout";
 import axios from "../utils/axios";
+import { toast } from "react-toastify";
 
 function UserManagement() {
   const navigate = useNavigate();
@@ -12,6 +13,12 @@ function UserManagement() {
   const [activeTab, setActiveTab] = useState("users"); // "users" or "history"
   const [activityLogs, setActivityLogs] = useState([]);
   const [loadingActivity, setLoadingActivity] = useState(false);
+  const [confirmModal, setConfirmModal] = useState({
+    show: false,
+    action: null,
+    data: null,
+    message: "",
+  });
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -215,17 +222,18 @@ function UserManagement() {
   };
 
   const handleDeactivate = async (userId, userName) => {
-    if (
-      !confirm(
-        `Are you sure you want to deactivate ${userName}? They will no longer be able to login.`,
-      )
-    ) {
-      return;
-    }
+    setConfirmModal({
+      show: true,
+      action: "deactivate",
+      data: { userId, userName },
+      message: `Are you sure you want to deactivate ${userName}? They will no longer be able to login.`,
+    });
+  };
 
+  const executeDeactivate = async (userId, userName) => {
     try {
       await axios.patch(`/users/${userId}/deactivate`);
-      setSuccess("User deactivated successfully");
+      toast.success("User deactivated successfully");
       fetchUsers();
 
       // Trigger custom event to notify other components about user list changes
@@ -234,25 +242,24 @@ function UserManagement() {
           detail: { timestamp: Date.now() },
         }),
       );
-
-      setTimeout(() => setSuccess(""), 3000);
     } catch (err) {
-      setError(err.response?.data?.message || "Failed to deactivate user");
+      toast.error(err.response?.data?.message || "Failed to deactivate user");
     }
   };
 
   const handleDeleteUserFromLog = async (userId, userName) => {
-    if (
-      !confirm(
-        `Are you sure you want to permanently delete ${userName}? This action cannot be undone.`,
-      )
-    ) {
-      return;
-    }
+    setConfirmModal({
+      show: true,
+      action: "delete",
+      data: { userId, userName },
+      message: `Are you sure you want to permanently delete ${userName}? This action cannot be undone.`,
+    });
+  };
 
+  const executeDelete = async (userId, userName) => {
     try {
       await axios.delete(`/users/${userId}`);
-      setSuccess(`User ${userName} deleted successfully`);
+      toast.success(`User ${userName} deleted successfully`);
       fetchUsers();
       fetchActivityLogs(); // Refresh activity logs
 
@@ -262,25 +269,26 @@ function UserManagement() {
           detail: { timestamp: Date.now() },
         }),
       );
-
-      setTimeout(() => setSuccess(""), 3000);
     } catch (err) {
-      setError(err.response?.data?.message || "Failed to delete user");
-      setTimeout(() => setError(""), 3000);
+      toast.error(err.response?.data?.message || "Failed to delete user");
     }
   };
 
   const handleResendInvitation = async (userId, userName, userEmail) => {
-    if (!confirm(`Resend invitation email to ${userName} (${userEmail})?`)) {
-      return;
-    }
+    setConfirmModal({
+      show: true,
+      action: "resend",
+      data: { userId, userName, userEmail },
+      message: `Resend invitation email to ${userName} (${userEmail})?`,
+    });
+  };
 
+  const executeResendInvitation = async (userId, userName, userEmail) => {
     try {
       await axios.post(`/users/${userId}/resend-invitation`);
-      setSuccess(`Invitation email sent successfully to ${userEmail}`);
-      setTimeout(() => setSuccess(""), 5000);
+      toast.success(`Invitation email sent successfully to ${userEmail}`);
     } catch (err) {
-      setError(
+      toast.error(
         err.response?.data?.message || "Failed to send invitation email",
       );
     }
@@ -1094,22 +1102,70 @@ function UserManagement() {
                       <label className="block text-sm font-bold text-gray-700 mb-2">
                         Assign Manager *
                       </label>
-                      <select
-                        name="managerId"
-                        value={formData.managerId}
-                        onChange={handleInputChange}
-                        className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-[#0077b6] focus:border-[#0077b6] transition-all"
-                        required
-                      >
-                        <option value="">Select a manager</option>
-                        {users
-                          .filter((u) => u.role === "manager")
-                          .map((manager) => (
-                            <option key={manager._id} value={manager._id}>
-                              {manager.name} - {manager.department || "No Dept"}
-                            </option>
-                          ))}
-                      </select>
+                      <div className="relative">
+                        <select
+                          name="managerId"
+                          value={formData.managerId}
+                          onChange={handleInputChange}
+                          className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-[#0077b6] focus:border-[#0077b6] transition-all"
+                          required
+                        >
+                          <option value="">Select a manager</option>
+                          {users
+                            .filter((u) => u.role === "manager")
+                            .map((manager) => (
+                              <option key={manager._id} value={manager._id}>
+                                {manager.name} -{" "}
+                                {manager.department || "No Dept"}
+                              </option>
+                            ))}
+                        </select>
+                        {formData.managerId && (
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              const managerToDelete = users.find(
+                                (u) => u._id === formData.managerId,
+                              );
+                              if (
+                                window.confirm(
+                                  `Delete manager "${managerToDelete?.name}"?\n\nThis will permanently remove this user from the system.`,
+                                )
+                              ) {
+                                try {
+                                  await axios.delete(
+                                    `/users/${formData.managerId}`,
+                                  );
+                                  toast.success("Manager deleted successfully");
+                                  setFormData({ ...formData, managerId: "" });
+                                  fetchUsers();
+                                } catch (error) {
+                                  toast.error(
+                                    error.response?.data?.message ||
+                                      "Failed to delete manager",
+                                  );
+                                }
+                              }
+                            }}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 p-2 text-red-600 hover:text-red-800 hover:bg-red-50 rounded-lg transition-all"
+                            title="Delete manager"
+                          >
+                            <svg
+                              className="w-5 h-5"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                              />
+                            </svg>
+                          </button>
+                        )}
+                      </div>
                       <p className="text-sm text-gray-500 mt-1">
                         {formData.role === "employee" ? "Employee" : "Intern"}{" "}
                         will report to this manager
@@ -1316,6 +1372,74 @@ function UserManagement() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Confirmation Modal */}
+      {confirmModal.show && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 animate-slideInUp">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-12 h-12 rounded-full bg-yellow-100 flex items-center justify-center">
+                <svg
+                  className="w-6 h-6 text-yellow-600"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                  />
+                </svg>
+              </div>
+              <h3 className="text-xl font-bold text-gray-900">
+                Confirm Action
+              </h3>
+            </div>
+            <p className="text-gray-700 mb-6">{confirmModal.message}</p>
+            <div className="flex gap-3">
+              <button
+                onClick={() =>
+                  setConfirmModal({
+                    show: false,
+                    action: null,
+                    data: null,
+                    message: "",
+                  })
+                }
+                className="flex-1 px-4 py-2.5 border-2 border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 transition-all font-semibold"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  const { action, data } = confirmModal;
+                  setConfirmModal({
+                    show: false,
+                    action: null,
+                    data: null,
+                    message: "",
+                  });
+                  if (action === "deactivate")
+                    executeDeactivate(data.userId, data.userName);
+                  else if (action === "delete")
+                    executeDelete(data.userId, data.userName);
+                  else if (action === "resend")
+                    executeResendInvitation(
+                      data.userId,
+                      data.userName,
+                      data.userEmail,
+                    );
+                }}
+                className="flex-1 px-4 py-2.5 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-xl hover:shadow-lg transition-all font-semibold"
+              >
+                Confirm
+              </button>
+            </div>
           </div>
         </div>
       )}
