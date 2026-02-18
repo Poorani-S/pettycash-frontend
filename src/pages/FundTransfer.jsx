@@ -334,6 +334,18 @@ const FundTransfer = () => {
         `Replenish: ${transaction.category?.name || "Expense"} - ${transaction.payeeClientName || ""}`,
       );
 
+      // Auto-populate user from expense transaction
+      if (transaction.submittedBy?._id) {
+        setSelectedClient(transaction.submittedBy._id);
+        setSelectedClientDetails(transaction.submittedBy);
+      } else if (transaction.user?._id) {
+        setSelectedClient(transaction.user._id);
+        setSelectedClientDetails(transaction.user);
+      } else if (transaction.requestedBy?._id) {
+        setSelectedClient(transaction.requestedBy._id);
+        setSelectedClientDetails(transaction.requestedBy);
+      }
+
       // Clear bank details for cash
       setBankName("");
       setAccountNumber("");
@@ -449,8 +461,8 @@ const FundTransfer = () => {
 
       setSuccess(
         conversionSuccess
-          ? `✅ Expense converted to fund transfer! New balance: ₹${response.data.balance.toLocaleString()}`
-          : `Funds added successfully! New balance: ₹${response.data.balance.toLocaleString()}`,
+          ? "✅ Expense converted to fund transfer successfully!"
+          : "Funds added successfully!",
       );
       setCurrentBalance(response.data.balance);
 
