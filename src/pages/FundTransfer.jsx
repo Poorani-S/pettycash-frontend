@@ -282,6 +282,59 @@ const FundTransfer = () => {
     }
   };
 
+  const handlePopulateFromTransaction = (transaction) => {
+    // Set the selected transaction for detail view
+    setSelectedTransaction(transaction);
+
+    // Populate form based on transaction type
+    if (transaction.transactionType === "fund_transfer") {
+      // Fund Transfer - populate with fund transfer details
+      setTransferType(transaction.transferType === "Bank Transfer" || transaction.transferType === "bank" ? "bank" : "cash");
+      setAmount(transaction.amount?.toString() || "");
+      setPurpose(transaction.purpose || transaction.notes || "");
+      
+      // Set recipient if available
+      if (transaction.recipientId?._id) {
+        setSelectedClient(transaction.recipientId._id);
+        setSelectedClientDetails(transaction.recipientId);
+      }
+
+      // Set bank details for bank transfers
+      if (transaction.transferType === "bank" || transaction.transferType === "Bank Transfer") {
+        setBankName(transaction.bankName || "");
+        setAccountNumber(transaction.accountNumber || "");
+        setTransactionId(transaction.transactionReference || "");
+      }
+    } else {
+      // Expense Transaction - convert to cash fund transfer
+      setTransferType("cash");
+      setAmount(transaction.displayAmount?.toString() || transaction.postTaxAmount?.toString() || transaction.amount?.toString() || "");
+      setPurpose(`Replenish: ${transaction.category?.name || "Expense"} - ${transaction.payeeClientName || ""}`);
+      
+      // Clear bank details for cash
+      setBankName("");
+      setAccountNumber("");
+      setTransactionId("");
+    }
+
+    // Reset other fields
+    setRemarks(`Copied from transaction on ${formatDateTime(transaction.displayDate)}`);
+    setTransferDate(new Date().toISOString().split("T")[0]);
+    
+    // Show success message
+    toast.info("✅ Form populated! Review and modify as needed before submitting.", {
+      autoClose: 3000,
+    });
+
+    // Scroll to form
+    setTimeout(() => {
+      const formElement = document.querySelector('form');
+      if (formElement) {
+        formElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }, 100);
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -523,6 +576,60 @@ const FundTransfer = () => {
             </div>
             Add Funds
           </h2>
+
+          {selectedTransaction && (
+            <div className="mb-4 p-4 bg-blue-50 border-l-4 border-blue-500 rounded-xl flex items-start justify-between gap-3 animate-slideInRight">
+              <div className="flex items-start gap-3">
+                <svg
+                  className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                  />
+                </svg>
+                <div>
+                  <p className="text-blue-800 font-semibold text-sm">
+                    Form populated from selected transaction
+                  </p>
+                  <p className="text-blue-600 text-xs mt-1">
+                    Review and modify the details below before submitting
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedTransaction(null);
+                  setAmount("");
+                  setPurpose("");
+                  setRemarks("");
+                  setSelectedClient("");
+                  setSelectedClientDetails(null);
+                  setBankName(userBankDetails?.bankName || "");
+                  setAccountNumber("");
+                  setTransactionId("");
+                  toast.info("Form cleared");
+                }}
+                className="text-blue-500 hover:text-blue-700 transition-colors flex-shrink-0"
+                title="Clear form"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M6 18L18 6M6 6l12 12"
+                  />
+                </svg>
+              </button>
+            </div>
+          )}
 
           {error && (
             <div className="bg-red-50 border-l-4 border-red-500 text-red-700 px-3 sm:px-4 py-2.5 sm:py-3 rounded-xl mb-3 sm:mb-4 flex items-center gap-2 sm:gap-3 animate-slideInRight">
@@ -956,24 +1063,29 @@ const FundTransfer = () => {
         {/* Recent Transactions List */}
         <div className="bg-white rounded-2xl shadow-soft p-8 animate-slideInRight">
           <div className="flex items-center justify-between mb-6">
-            <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-3">
-              <div className="bg-gradient-to-br from-purple-500 to-purple-600 text-white rounded-xl p-2">
-                <svg
-                  className="w-6 h-6"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
-                  />
-                </svg>
-              </div>
-              Recent Transactions
-            </h2>
+            <div>
+              <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-3">
+                <div className="bg-gradient-to-br from-purple-500 to-purple-600 text-white rounded-xl p-2">
+                  <svg
+                    className="w-6 h-6"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                    />
+                  </svg>
+                </div>
+                Recent Transactions
+              </h2>
+              <p className="text-sm text-gray-500 mt-2 ml-14">
+                💡 Click any transaction to populate the form above
+              </p>
+            </div>
 
             {allTransactions.length > 0 && (
               <button
@@ -1031,13 +1143,14 @@ const FundTransfer = () => {
               allTransactions.map((transaction, index) => (
                 <div
                   key={transaction._id}
-                  onClick={() => setSelectedTransaction(transaction)}
+                  onClick={() => handlePopulateFromTransaction(transaction)}
                   className={`border-2 rounded-xl p-5 hover:shadow-lg transition-all duration-300 card-hover animate-slideInUp cursor-pointer ${
                     transaction.transactionType === "fund_transfer"
                       ? "border-green-100 hover:border-green-400"
                       : "border-red-100 hover:border-red-400"
                   } ${selectedTransaction?._id === transaction._id ? "ring-2 ring-blue-500 border-blue-400" : ""}`}
                   style={{ animationDelay: `${index * 50}ms` }}
+                  title="Click to populate form with this transaction's details"
                 >
                   {/* Header: Type Badge, Description & Amount */}
                   <div className="flex justify-between items-start mb-4">
