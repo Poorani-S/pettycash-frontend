@@ -388,10 +388,11 @@ const FundTransfer = () => {
       const response = await axios.post("/fund-transfers", data);
 
       // If this was populated from an expense transaction, delete the original expense
+      let conversionSuccess = false;
       if (sourceTransactionType === "expense" && sourceTransactionId) {
         try {
           await axios.delete(`/transactions/${sourceTransactionId}`);
-          toast.success("✅ Expense converted to fund transfer successfully!");
+          conversionSuccess = true;
         } catch (deleteErr) {
           console.error("Error deleting source expense:", deleteErr);
           // Don't fail the whole operation if delete fails
@@ -399,14 +400,20 @@ const FundTransfer = () => {
       }
 
       setSuccess(
-        `Funds added successfully! New balance: ₹${response.data.balance.toLocaleString()}`,
+        conversionSuccess
+          ? `✅ Expense converted to fund transfer! New balance: ₹${response.data.balance.toLocaleString()}`
+          : `Funds added successfully! New balance: ₹${response.data.balance.toLocaleString()}`,
       );
       setCurrentBalance(response.data.balance);
 
       // Dispatch event to notify other components about the update
       window.dispatchEvent(
         new CustomEvent("transactionsUpdated", {
-          detail: { action: "fundTransferCreated" },
+          detail: {
+            action: conversionSuccess
+              ? "expenseConverted"
+              : "fundTransferCreated",
+          },
         }),
       );
 
@@ -430,8 +437,15 @@ const FundTransfer = () => {
       }
 
       // Refresh data
-      fetchAllTransactions();
-      fetchStats();
+      await fetchAllTransactions();
+      await fetchStats();
+
+      // Show toast notification for conversion
+      if (conversionSuccess) {
+        toast.success("💰 Expense converted to fund transfer!", {
+          autoClose: 3000,
+        });
+      }
     } catch (err) {
       setError(err.response?.data?.message || "Failed to add funds");
     } finally {
