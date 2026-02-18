@@ -136,18 +136,13 @@ const Transactions = () => {
   const getStatusBadge = (status) => {
     const badges = {
       pending: "bg-yellow-100 text-yellow-700",
-      pending_approval: "bg-yellow-100 text-yellow-700",
-      info_requested: "bg-yellow-100 text-yellow-700",
       approved: "bg-green-100 text-green-700",
-      paid: "bg-green-100 text-green-700",
       rejected: "bg-red-100 text-red-700",
-      draft: "bg-gray-100 text-gray-700",
     };
     return badges[status] || "bg-gray-100 text-gray-700";
   };
 
-  const isPendingLike = (status) =>
-    ["pending", "pending_approval", "info_requested"].includes(status);
+  const isPendingLike = (status) => status === "pending";
 
   const formatDate = (dateString) => {
     if (!dateString) return "—";
@@ -168,21 +163,10 @@ const Transactions = () => {
     return numberValue.toLocaleString("en-IN");
   };
 
-  // Status grouping matching backend logic
+  // Status filtering - now simplified to three categories
   const statusMatches = (transaction, filterStatus) => {
     if (filterStatus === "all") return true;
-
-    const status = transaction.status;
-    if (filterStatus === "pending") {
-      return ["pending", "pending_approval", "info_requested"].includes(status);
-    }
-    if (filterStatus === "approved") {
-      return ["approved", "paid"].includes(status);
-    }
-    if (filterStatus === "rejected") {
-      return status === "rejected";
-    }
-    return status === filterStatus;
+    return transaction.status === filterStatus;
   };
 
   const filteredTransactions = transactions

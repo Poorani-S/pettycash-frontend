@@ -1276,10 +1276,12 @@ const FundTransfer = () => {
                     </span>
                     {selectedTransaction.status && (
                       <span className={`px-3 py-1 rounded-lg font-semibold text-xs ${
-                        selectedTransaction.status === "approved" || selectedTransaction.status === "paid"
+                        selectedTransaction.status === "approved"
                           ? "bg-green-100 text-green-700"
-                          : selectedTransaction.status === "pending" || selectedTransaction.status === "pending_approval"
+                          : selectedTransaction.status === "pending"
                           ? "bg-yellow-100 text-yellow-700"
+                          : selectedTransaction.status === "rejected"
+                          ? "bg-red-100 text-red-700"
                           : "bg-gray-100 text-gray-700"
                       }`}>
                         {selectedTransaction.status}
