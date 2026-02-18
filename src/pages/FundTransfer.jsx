@@ -192,7 +192,6 @@ const FundTransfer = () => {
   const fetchFundTransfers = async () => {
     try {
       const response = await axios.get("/fund-transfers?limit=20");
-      console.log("Fund Transfers API Response:", response.data);
       setFundTransfers(response.data.data || []);
     } catch (err) {
       console.error("Error fetching fund transfers:", err);
