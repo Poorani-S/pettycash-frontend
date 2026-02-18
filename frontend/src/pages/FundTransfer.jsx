@@ -225,7 +225,8 @@ const FundTransfer = () => {
             ...et,
             transactionType: "expense",
             displayDate: et.date || et.createdAt,
-            displayAmount: et.amount,
+            displayAmount:
+              et.postTaxAmount || et.preTaxAmount || et.amount || 0,
             isCredit: false,
           }),
         );
@@ -1096,6 +1097,8 @@ const FundTransfer = () => {
                       ₹
                       {(
                         transaction.displayAmount ||
+                        transaction.postTaxAmount ||
+                        transaction.preTaxAmount ||
                         transaction.amount ||
                         0
                       ).toLocaleString("en-IN")}
