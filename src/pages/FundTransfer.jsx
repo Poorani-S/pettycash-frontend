@@ -225,7 +225,8 @@ const FundTransfer = () => {
             ...et,
             transactionType: "expense",
             displayDate: et.date || et.createdAt,
-            displayAmount: et.amount,
+            displayAmount:
+              et.postTaxAmount || et.preTaxAmount || et.amount || 0,
             isCredit: false,
           }),
         );
@@ -307,6 +308,13 @@ const FundTransfer = () => {
         `Funds added successfully! New balance: ₹${response.data.balance.toLocaleString()}`,
       );
       setCurrentBalance(response.data.balance);
+
+      // Dispatch event to notify other components about the update
+      window.dispatchEvent(
+        new CustomEvent("transactionsUpdated", {
+          detail: { action: "fundTransferCreated" },
+        }),
+      );
 
       // Reset form - keep bank name pre-filled from user profile
       setAmount("");
@@ -1089,6 +1097,8 @@ const FundTransfer = () => {
                       ₹
                       {(
                         transaction.displayAmount ||
+                        transaction.postTaxAmount ||
+                        transaction.preTaxAmount ||
                         transaction.amount ||
                         0
                       ).toLocaleString("en-IN")}
