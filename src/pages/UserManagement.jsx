@@ -26,6 +26,7 @@ function UserManagement() {
     password: "",
     role: "employee",
     managerId: "",
+    reportsDirectlyToCEO: false,
     department: "",
     employeeNumber: "",
     approvalLimit: "",
@@ -208,6 +209,8 @@ function UserManagement() {
       phone: user.phone,
       password: "", // Don't populate password field when editing
       role: user.role,
+      managerId: user.managerId?._id || user.managerId || "",
+      reportsDirectlyToCEO: user.reportsDirectlyToCEO || false,
       department: user.department || "",
       employeeNumber: user.employeeNumber || "",
       approvalLimit: user.approvalLimit || "",
@@ -306,6 +309,8 @@ function UserManagement() {
       phone: "",
       password: "",
       role: "employee",
+      managerId: "",
+      reportsDirectlyToCEO: false,
       department: "",
       employeeNumber: "",
       approvalLimit: "",
@@ -326,6 +331,7 @@ function UserManagement() {
   const getRoleBadgeColor = (role) => {
     const colors = {
       admin: "bg-purple-100 text-purple-800 border-purple-200",
+      ceo: "bg-amber-100 text-amber-800 border-amber-200",
       manager: "bg-indigo-100 text-indigo-800 border-indigo-200",
       employee: "bg-cyan-100 text-cyan-800 border-cyan-200",
       intern: "bg-pink-100 text-pink-800 border-pink-200",
@@ -339,6 +345,7 @@ function UserManagement() {
   const getRoleIcon = (role) => {
     const icons = {
       admin: "👑",
+      ceo: "👔",
       manager: "📋",
       employee: "👤",
       intern: "🎓",
@@ -825,7 +832,16 @@ function UserManagement() {
                         </span>
                       </td>
                       <td className="py-4 px-4">
-                        {user.managerId ? (
+                        {user.reportsDirectlyToCEO ? (
+                          <div className="text-sm">
+                            <p className="font-medium text-amber-700 flex items-center gap-1">
+                              👔 Reports to CEO
+                            </p>
+                            <p className="text-xs text-amber-600">
+                              Direct reporting
+                            </p>
+                          </div>
+                        ) : user.managerId ? (
                           <div className="text-sm">
                             <p className="font-medium text-gray-700">
                               📋 {user.managerId.name}
@@ -836,7 +852,9 @@ function UserManagement() {
                           </div>
                         ) : (
                           <span className="text-sm text-gray-400">
-                            {user.role === "admin" ? "CEO" : "—"}
+                            {user.role === "admin" || user.role === "ceo"
+                              ? "Top Level"
+                              : "—"}
                           </span>
                         )}
                       </td>
@@ -1090,6 +1108,9 @@ function UserManagement() {
                       <option value="manager">
                         📋 Manager (Manage team & approve)
                       </option>
+                      <option value="ceo">
+                        👔 CEO (Chief Executive Officer)
+                      </option>
                       <option value="approver">
                         ✅ Approver (Review & approve)
                       </option>
@@ -1098,81 +1119,127 @@ function UserManagement() {
                     </select>
                   </div>
 
-                  {/* Manager Assignment - For employees and interns */}
+                  {/* Manager Assignment - For employees, interns, and managers */}
                   {(formData.role === "employee" ||
-                    formData.role === "intern") && (
-                    <div>
-                      <label className="block text-sm font-bold text-gray-700 mb-2">
-                        Assign Manager *
-                      </label>
-                      <div className="relative">
-                        <select
-                          name="managerId"
-                          value={formData.managerId}
-                          onChange={handleInputChange}
-                          className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-[#0077b6] focus:border-[#0077b6] transition-all"
-                          required
-                        >
-                          <option value="">Select a manager</option>
-                          {users
-                            .filter((u) => u.role === "manager")
-                            .map((manager) => (
-                              <option key={manager._id} value={manager._id}>
-                                {manager.name} -{" "}
-                                {manager.department || "No Dept"}
-                              </option>
-                            ))}
-                        </select>
-                        {formData.managerId && (
-                          <button
-                            type="button"
-                            onClick={async () => {
-                              const managerToDelete = users.find(
-                                (u) => u._id === formData.managerId,
-                              );
-                              if (
-                                window.confirm(
-                                  `Delete manager "${managerToDelete?.name}"?\n\nThis will permanently remove this user from the system.`,
-                                )
-                              ) {
-                                try {
-                                  await axios.delete(
-                                    `/users/${formData.managerId}`,
-                                  );
-                                  toast.success("Manager deleted successfully");
-                                  setFormData({ ...formData, managerId: "" });
-                                  fetchUsers();
-                                } catch (error) {
-                                  toast.error(
-                                    error.response?.data?.message ||
-                                      "Failed to delete manager",
-                                  );
-                                }
-                              }
+                    formData.role === "intern" ||
+                    formData.role === "manager") && (
+                    <div className="md:col-span-2">
+                      {/* Reports Directly to CEO Checkbox */}
+                      <div className="mb-4">
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={formData.reportsDirectlyToCEO}
+                            onChange={(e) => {
+                              const checked = e.target.checked;
+                              setFormData({
+                                ...formData,
+                                reportsDirectlyToCEO: checked,
+                                managerId: checked ? "" : formData.managerId,
+                              });
                             }}
-                            className="absolute right-3 top-1/2 -translate-y-1/2 p-2 text-red-600 hover:text-red-800 hover:bg-red-50 rounded-lg transition-all"
-                            title="Delete manager"
-                          >
-                            <svg
-                              className="w-5 h-5"
-                              fill="none"
-                              stroke="currentColor"
-                              viewBox="0 0 24 24"
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                              />
-                            </svg>
-                          </button>
-                        )}
+                            className="w-5 h-5 text-[#0077b6] rounded focus:ring-2 focus:ring-[#0077b6]"
+                          />
+                          <span className="text-sm font-bold text-gray-700">
+                            👔 Reports Directly to CEO
+                          </span>
+                        </label>
+                        <p className="text-xs text-gray-500 mt-1 ml-7">
+                          Check this if the {formData.role} reports directly to
+                          the CEO
+                        </p>
                       </div>
-                      <p className="text-sm text-gray-500 mt-1">
-                        {formData.role === "employee" ? "Employee" : "Intern"}{" "}
-                        will report to this manager
-                      </p>
+
+                      {/* Manager Selection - Only show if NOT reporting to CEO */}
+                      {!formData.reportsDirectlyToCEO && (
+                        <div>
+                          <label className="block text-sm font-bold text-gray-700 mb-2">
+                            Assign Manager {formData.role !== "manager" && "*"}
+                          </label>
+                          <div className="relative">
+                            <select
+                              name="managerId"
+                              value={formData.managerId}
+                              onChange={handleInputChange}
+                              className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-[#0077b6] focus:border-[#0077b6] transition-all"
+                              required={
+                                !formData.reportsDirectlyToCEO &&
+                                formData.role !== "manager"
+                              }
+                            >
+                              <option value="">Select a manager</option>
+                              {users
+                                .filter(
+                                  (u) =>
+                                    u.role === "manager" || u.role === "ceo",
+                                )
+                                .map((manager) => (
+                                  <option key={manager._id} value={manager._id}>
+                                    {manager.name} (
+                                    {manager.role === "ceo" ? "CEO" : "Manager"}
+                                    ) - {manager.department || "No Dept"}
+                                  </option>
+                                ))}
+                            </select>
+                            {formData.managerId && (
+                              <button
+                                type="button"
+                                onClick={async () => {
+                                  const managerToDelete = users.find(
+                                    (u) => u._id === formData.managerId,
+                                  );
+                                  if (
+                                    window.confirm(
+                                      `Delete manager "${managerToDelete?.name}"?\n\nThis will permanently remove this user from the system.`,
+                                    )
+                                  ) {
+                                    try {
+                                      await axios.delete(
+                                        `/users/${formData.managerId}`,
+                                      );
+                                      toast.success(
+                                        "Manager deleted successfully",
+                                      );
+                                      setFormData({
+                                        ...formData,
+                                        managerId: "",
+                                      });
+                                      fetchUsers();
+                                    } catch (error) {
+                                      toast.error(
+                                        error.response?.data?.message ||
+                                          "Failed to delete manager",
+                                      );
+                                    }
+                                  }
+                                }}
+                                className="absolute right-3 top-1/2 -translate-y-1/2 p-2 text-red-600 hover:text-red-800 hover:bg-red-50 rounded-lg transition-all"
+                                title="Delete manager"
+                              >
+                                <svg
+                                  className="w-5 h-5"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  viewBox="0 0 24 24"
+                                >
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2}
+                                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                                  />
+                                </svg>
+                              </button>
+                            )}
+                          </div>
+                          <p className="text-sm text-gray-500 mt-1">
+                            {formData.role === "employee" ||
+                            formData.role === "intern"
+                              ? `${formData.role.charAt(0).toUpperCase() + formData.role.slice(1)} will report to this manager`
+                              : "Optional: Manager can also report to another manager or CEO"}
+                          </p>
+                        </div>
+                      )}
                     </div>
                   )}
 
@@ -1366,6 +1433,8 @@ function UserManagement() {
                       phone: "",
                       password: "",
                       role: "employee",
+                      managerId: "",
+                      reportsDirectlyToCEO: false,
                       department: "",
                       employeeNumber: "",
                       approvalLimit: "",
