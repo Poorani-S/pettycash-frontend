@@ -410,6 +410,43 @@ const FundTransfer = () => {
 
       const response = await axios.post("/fund-transfers", data);
 
+      // Immediately update UI if conversion was successful
+      if (conversionSuccess && sourceTransactionId) {
+        // Remove the expense from the list immediately
+        setAllTransactions((prevTransactions) =>
+          prevTransactions.filter((t) => t._id !== sourceTransactionId),
+        );
+
+        // Add a temporary placeholder for the new fund transfer
+        const newFundTransfer = {
+          _id: response.data.data._id,
+          transactionType: "fund_transfer",
+          amount: parseFloat(amount),
+          displayAmount: parseFloat(amount),
+          transferType: transferType,
+          purpose: purpose,
+          recipientId: selectedClientDetails,
+          initiatedBy: { name: response.data.data.initiatedBy?.name || "You" },
+          transferDate: transferDate,
+          displayDate: originalTimestamp || response.data.data.createdAt,
+          createdAt: originalTimestamp || response.data.data.createdAt,
+          isCredit: true,
+          bankName: transferType === "bank" ? bankName : undefined,
+          transactionReference:
+            transferType === "bank" ? transactionId : undefined,
+        };
+
+        // Add the new fund transfer and re-sort
+        setAllTransactions((prevTransactions) => {
+          const updated = [...prevTransactions, newFundTransfer];
+          return updated.sort(
+            (a, b) =>
+              new Date(b.displayDate || b.createdAt) -
+              new Date(a.displayDate || a.createdAt),
+          );
+        });
+      }
+
       setSuccess(
         conversionSuccess
           ? `✅ Expense converted to fund transfer! New balance: ₹${response.data.balance.toLocaleString()}`
@@ -450,6 +487,9 @@ const FundTransfer = () => {
       // Refresh data
       await fetchAllTransactions();
       await fetchStats();
+
+      // Ensure selected transaction is cleared for UI update
+      setSelectedTransaction(null);
 
       // Show toast notification for conversion
       if (conversionSuccess) {
