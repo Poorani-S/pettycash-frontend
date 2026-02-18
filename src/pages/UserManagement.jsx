@@ -34,6 +34,8 @@ function UserManagement() {
       accountNumber: "",
       ifscCode: "",
       branchName: "",
+      upiId: "",
+      upiNumber: "",
     },
     panNumber: "",
     address: "",
@@ -214,6 +216,8 @@ function UserManagement() {
         accountNumber: "",
         ifscCode: "",
         branchName: "",
+        upiId: "",
+        upiNumber: "",
       },
       panNumber: user.panNumber || "",
       address: user.address || "",
@@ -310,6 +314,8 @@ function UserManagement() {
         accountNumber: "",
         ifscCode: "",
         branchName: "",
+        upiId: "",
+        upiNumber: "",
       },
       panNumber: "",
       address: "",
@@ -1282,6 +1288,22 @@ function UserManagement() {
                       placeholder="PAN Number"
                       className="px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-[#0077b6] focus:border-[#0077b6] transition-all uppercase"
                     />
+                    <input
+                      type="text"
+                      name="bankDetails.upiId"
+                      value={formData.bankDetails.upiId}
+                      onChange={handleInputChange}
+                      placeholder="UPI ID (e.g., user@paytm)"
+                      className="px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-[#0077b6] focus:border-[#0077b6] transition-all"
+                    />
+                    <input
+                      type="text"
+                      name="bankDetails.upiNumber"
+                      value={formData.bankDetails.upiNumber}
+                      onChange={handleInputChange}
+                      placeholder="UPI Number (Mobile linked to UPI)"
+                      className="px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-[#0077b6] focus:border-[#0077b6] transition-all"
+                    />
                   </div>
                   <textarea
                     name="address"
@@ -1352,6 +1374,8 @@ function UserManagement() {
                         accountNumber: "",
                         ifscCode: "",
                         branchName: "",
+                        upiId: "",
+                        upiNumber: "",
                       },
                       panNumber: "",
                       address: "",
