@@ -778,7 +778,8 @@ const FundTransfer = () => {
                       clientName: client?.name || "",
                     });
                   }}
-                  className="mt-3 w-full px-4 py-3 bg-red-500 text-white hover:bg-red-600 rounded-xl transition-all font-bold flex items-center justify-center gap-2"
+                  className="mt-3 w-full flex justify-center py-2 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg transition-all"
+                  title="Delete selected user"
                 >
                   <svg
                     className="w-5 h-5"
@@ -793,7 +794,6 @@ const FundTransfer = () => {
                       d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
                     />
                   </svg>
-                  Delete Selected User
                 </button>
               )}
             </div>
@@ -1143,11 +1143,11 @@ const FundTransfer = () => {
             {allTransactions.length > 0 && (
               <button
                 onClick={handleClearHistory}
-                className="flex items-center gap-2 px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors font-semibold text-sm"
-                title="Clear all fund transfer history"
+                className="p-2 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg transition-all"
+                title="Clear all transaction history"
               >
                 <svg
-                  className="w-4 h-4"
+                  className="w-5 h-5"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -1159,7 +1159,6 @@ const FundTransfer = () => {
                     d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
                   />
                 </svg>
-                Clear History
               </button>
             )}
           </div>
