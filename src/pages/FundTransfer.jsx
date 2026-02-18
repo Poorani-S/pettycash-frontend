@@ -1,11 +1,14 @@
 import { useState, useEffect } from "react";
 import axios from "../utils/axios";
 import Layout from "../components/Layout";
+import Loader from "../components/Loader";
 import { toast } from "react-toastify";
 
 const FundTransfer = () => {
   const [transferType, setTransferType] = useState("bank");
   const [amount, setAmount] = useState("");
+  const [currency, setCurrency] = useState("INR");
+  const [exchangeRate, setExchangeRate] = useState("1");
   const [bankName, setBankName] = useState("");
   const [accountNumber, setAccountNumber] = useState("");
   const [transactionId, setTransactionId] = useState("");
@@ -18,6 +21,7 @@ const FundTransfer = () => {
   const [fundTransfers, setFundTransfers] = useState([]);
   const [allTransactions, setAllTransactions] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(true);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [stats, setStats] = useState(null);
@@ -61,11 +65,16 @@ const FundTransfer = () => {
   });
 
   useEffect(() => {
-    fetchCurrentBalance();
-    fetchAllTransactions();
-    fetchStats();
-    loadUserBankDetails();
-    fetchClients();
+    const initializeData = async () => {
+      setInitialLoading(true);
+      await fetchCurrentBalance();
+      await fetchAllTransactions();
+      await fetchStats();
+      await loadUserBankDetails();
+      await fetchClients();
+      setInitialLoading(false);
+    };
+    initializeData();
   }, []);
 
   const loadUserBankDetails = () => {
@@ -304,6 +313,8 @@ const FundTransfer = () => {
           : "cash",
       );
       setAmount(transaction.amount?.toString() || "");
+      setCurrency(transaction.currency || "INR");
+      setExchangeRate(transaction.exchangeRate?.toString() || "1");
       setPurpose(transaction.purpose || transaction.notes || "");
 
       // Set recipient if available
@@ -330,6 +341,8 @@ const FundTransfer = () => {
           transaction.amount?.toString() ||
           "",
       );
+      setCurrency(transaction.currency || "INR");
+      setExchangeRate(transaction.exchangeRate?.toString() || "1");
       setPurpose(
         `Replenish: ${transaction.category?.name || "Expense"} - ${transaction.payeeClientName || ""}`,
       );
@@ -403,6 +416,8 @@ const FundTransfer = () => {
       const data = {
         transferType,
         amount: parseFloat(amount),
+        currency,
+        exchangeRate: parseFloat(exchangeRate),
         transferDate,
         remarks,
         purpose,
@@ -479,6 +494,8 @@ const FundTransfer = () => {
 
       // Reset form - keep bank name pre-filled from user profile
       setAmount("");
+      setCurrency("INR");
+      setExchangeRate("1");
       setAccountNumber("");
       setTransactionId("");
       setRemarks("");
@@ -538,8 +555,15 @@ const FundTransfer = () => {
 
   return (
     <Layout>
-      {/* Header Banner */}
-      <div className="bg-gradient-to-r from-[#023e8a] via-[#0077b6] to-[#00b4d8] rounded-xl sm:rounded-2xl p-4 sm:p-6 md:p-8 mb-6 sm:mb-8 text-white shadow-xl animate-fadeIn">
+      {/* Initial Loading Loader */}
+      {initialLoading && (
+        <Loader fullScreen={true} message="Loading fund transfer data..." size="large" />
+      )}
+
+      {!initialLoading && (
+        <>
+          {/* Header Banner */}
+          <div className="bg-gradient-to-r from-[#023e8a] via-[#0077b6] to-[#00b4d8] rounded-xl sm:rounded-2xl p-4 sm:p-6 md:p-8 mb-6 sm:mb-8 text-white shadow-xl animate-fadeIn">
         <div className="flex items-center gap-3 sm:gap-4">
           <div className="bg-white/20 backdrop-blur-sm rounded-xl sm:rounded-2xl p-3 sm:p-4">
             <svg
@@ -732,6 +756,8 @@ const FundTransfer = () => {
                   setSourceTransactionId(null);
                   setSourceTransactionType(null);
                   setAmount("");
+                  setCurrency("INR");
+                  setExchangeRate("1");
                   setPurpose("");
                   setRemarks("");
                   setSelectedClient("");
@@ -945,6 +971,54 @@ const FundTransfer = () => {
               </div>
             </div>
 
+            {/* Currency Selection */}
+            <div>
+              <label className="block text-sm font-bold text-gray-700 mb-3">
+                Currency *
+              </label>
+              <select
+                value={currency}
+                onChange={(e) => {
+                  setCurrency(e.target.value);
+                  setExchangeRate(
+                    e.target.value === "INR" ? "1" : exchangeRate,
+                  );
+                }}
+                className="w-full px-5 py-4 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-[#0077b6] focus:border-[#0077b6] transition-all duration-300 text-lg font-semibold hover:border-[#0077b6]"
+                required
+              >
+                <option value="INR">INR (₹)</option>
+                <option value="USD">USD ($)</option>
+                <option value="EUR">EUR (€)</option>
+                <option value="GBP">GBP (£)</option>
+                <option value="AED">AED (د.إ)</option>
+                <option value="SGD">SGD (S$)</option>
+                <option value="MYR">MYR (RM)</option>
+              </select>
+            </div>
+
+            {/* Exchange Rate (only for non-INR) */}
+            {currency !== "INR" && (
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-3">
+                  Exchange Rate (to INR) *
+                </label>
+                <input
+                  type="number"
+                  value={exchangeRate}
+                  onChange={(e) => setExchangeRate(e.target.value)}
+                  className="w-full px-5 py-4 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-[#0077b6] focus:border-[#0077b6] transition-all duration-300 text-lg font-semibold hover:border-[#0077b6]"
+                  placeholder="Exchange rate to INR"
+                  required
+                  min="0.01"
+                  step="0.01"
+                />
+                <p className="text-xs text-gray-500 mt-2">
+                  1 {currency} = {exchangeRate || "0"} INR
+                </p>
+              </div>
+            )}
+
             {/* Amount */}
             <div>
               <label className="block text-sm font-bold text-gray-700 mb-3 flex items-center gap-2">
@@ -961,7 +1035,7 @@ const FundTransfer = () => {
                     d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
                   />
                 </svg>
-                Amount (₹) *
+                Amount ({currency === "INR" ? "₹" : currency}) *
               </label>
               <input
                 type="number"
@@ -2141,6 +2215,8 @@ const FundTransfer = () => {
             </div>
           </div>
         </div>
+      )}
+      </>
       )}
     </Layout>
   );
