@@ -26,6 +26,10 @@ const FundTransfer = () => {
   // Transaction detail view state
   const [selectedTransaction, setSelectedTransaction] = useState(null);
 
+  // Track source transaction for conversion (expense -> fund transfer)
+  const [sourceTransactionId, setSourceTransactionId] = useState(null);
+  const [sourceTransactionType, setSourceTransactionType] = useState(null);
+
   // Client/User states
   const [clients, setClients] = useState([]);
   const [selectedClient, setSelectedClient] = useState("");
@@ -286,6 +290,10 @@ const FundTransfer = () => {
     // Set the selected transaction for detail view
     setSelectedTransaction(transaction);
 
+    // Track source transaction for potential conversion
+    setSourceTransactionId(transaction._id);
+    setSourceTransactionType(transaction.transactionType);
+
     // Populate form based on transaction type
     if (transaction.transactionType === "fund_transfer") {
       // Fund Transfer - populate with fund transfer details
@@ -379,6 +387,17 @@ const FundTransfer = () => {
 
       const response = await axios.post("/fund-transfers", data);
 
+      // If this was populated from an expense transaction, delete the original expense
+      if (sourceTransactionType === "expense" && sourceTransactionId) {
+        try {
+          await axios.delete(`/transactions/${sourceTransactionId}`);
+          toast.success("✅ Expense converted to fund transfer successfully!");
+        } catch (deleteErr) {
+          console.error("Error deleting source expense:", deleteErr);
+          // Don't fail the whole operation if delete fails
+        }
+      }
+
       setSuccess(
         `Funds added successfully! New balance: ₹${response.data.balance.toLocaleString()}`,
       );
@@ -399,6 +418,9 @@ const FundTransfer = () => {
       setPurpose("");
       setSelectedClient("");
       setSelectedClientDetails(null);
+      setSelectedTransaction(null);
+      setSourceTransactionId(null);
+      setSourceTransactionType(null);
       setTransferDate(new Date().toISOString().split("T")[0]);
       // Keep bankName from user profile
       if (userBankDetails?.bankName) {
@@ -615,10 +637,14 @@ const FundTransfer = () => {
                 </svg>
                 <div>
                   <p className="text-blue-800 font-semibold text-sm">
-                    Form populated from selected transaction
+                    {sourceTransactionType === "expense"
+                      ? "Converting expense to fund transfer"
+                      : "Form populated from selected transaction"}
                   </p>
                   <p className="text-blue-600 text-xs mt-1">
-                    Review and modify the details below before submitting
+                    {sourceTransactionType === "expense"
+                      ? "⚠️ The original expense will be replaced with this fund transfer"
+                      : "Review and modify the details below before submitting"}
                   </p>
                 </div>
               </div>
@@ -626,6 +652,8 @@ const FundTransfer = () => {
                 type="button"
                 onClick={() => {
                   setSelectedTransaction(null);
+                  setSourceTransactionId(null);
+                  setSourceTransactionType(null);
                   setAmount("");
                   setPurpose("");
                   setRemarks("");
