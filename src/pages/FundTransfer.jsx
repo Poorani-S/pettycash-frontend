@@ -370,6 +370,24 @@ const FundTransfer = () => {
     setSuccess("");
 
     try {
+      // If converting from expense, delete it first and preserve timestamp
+      let conversionSuccess = false;
+      let originalTimestamp = null;
+
+      if (sourceTransactionType === "expense" && sourceTransactionId) {
+        try {
+          // Get the original transaction to preserve its timestamp
+          if (selectedTransaction) {
+            originalTimestamp = selectedTransaction.createdAt;
+          }
+          await axios.delete(`/transactions/${sourceTransactionId}`);
+          conversionSuccess = true;
+        } catch (deleteErr) {
+          console.error("Error deleting source expense:", deleteErr);
+          // Don't fail the whole operation if delete fails
+        }
+      }
+
       const data = {
         transferType,
         amount: parseFloat(amount),
@@ -385,19 +403,12 @@ const FundTransfer = () => {
         data.transactionId = transactionId;
       }
 
-      const response = await axios.post("/fund-transfers", data);
-
-      // If this was populated from an expense transaction, delete the original expense
-      let conversionSuccess = false;
-      if (sourceTransactionType === "expense" && sourceTransactionId) {
-        try {
-          await axios.delete(`/transactions/${sourceTransactionId}`);
-          conversionSuccess = true;
-        } catch (deleteErr) {
-          console.error("Error deleting source expense:", deleteErr);
-          // Don't fail the whole operation if delete fails
-        }
+      // If converting, preserve original timestamp for sorting
+      if (conversionSuccess && originalTimestamp) {
+        data.preserveTimestamp = originalTimestamp;
       }
+
+      const response = await axios.post("/fund-transfers", data);
 
       setSuccess(
         conversionSuccess
