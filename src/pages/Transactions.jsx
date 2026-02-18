@@ -48,7 +48,7 @@ const Transactions = () => {
         handleTransactionUpdate,
       );
     };
-  }, [filter]);
+  }, []); // Removed filter dependency since filtering now happens on frontend
 
   const fetchFinancialSummary = async () => {
     try {
@@ -83,8 +83,8 @@ const Transactions = () => {
   const fetchTransactions = async () => {
     try {
       setLoading(true);
-      const params = filter !== "all" ? { status: filter } : {};
-      const response = await axios.get("/transactions", { params });
+      // Fetch all transactions and filter on frontend to handle grouped statuses
+      const response = await axios.get("/transactions");
       setTransactions(response.data?.data || []);
     } catch (err) {
       console.error("Error fetching transactions:", err);
@@ -168,26 +168,45 @@ const Transactions = () => {
     return numberValue.toLocaleString("en-IN");
   };
 
-  const filteredTransactions = transactions.filter(
-    (transaction) =>
-      transaction.payeeClientName
-        ?.toLowerCase()
-        .includes(searchQuery.toLowerCase()) ||
-      transaction.purpose?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      transaction.category?.name
-        ?.toLowerCase()
-        .includes(searchQuery.toLowerCase()),
-  );
+  // Status grouping matching backend logic
+  const statusMatches = (transaction, filterStatus) => {
+    if (filterStatus === "all") return true;
 
+    const status = transaction.status;
+    if (filterStatus === "pending") {
+      return ["pending", "pending_approval", "info_requested"].includes(status);
+    }
+    if (filterStatus === "approved") {
+      return ["approved", "paid"].includes(status);
+    }
+    if (filterStatus === "rejected") {
+      return status === "rejected";
+    }
+    return status === filterStatus;
+  };
+
+  const filteredTransactions = transactions
+    .filter((transaction) => statusMatches(transaction, filter))
+    .filter(
+      (transaction) =>
+        transaction.payeeClientName
+          ?.toLowerCase()
+          .includes(searchQuery.toLowerCase()) ||
+        transaction.purpose
+          ?.toLowerCase()
+          .includes(searchQuery.toLowerCase()) ||
+        transaction.category?.name
+          ?.toLowerCase()
+          .includes(searchQuery.toLowerCase()),
+    );
+
+  // Show only expense transaction stats (fund transfers have their own page)
   const stats = {
-    total:
-      summary.expense.totalTransactions + summary.fundTransfers.overall.count,
+    total: summary.expense.totalTransactions,
     pending: summary.expense.pendingCount,
-    approved:
-      summary.expense.approvedCount + summary.fundTransfers.overall.count,
+    approved: summary.expense.approvedCount,
     rejected: summary.expense.rejectedCount,
-    totalAmount:
-      summary.expense.totalAmount + summary.fundTransfers.overall.total,
+    totalAmount: summary.expense.totalAmount,
   };
 
   return (
