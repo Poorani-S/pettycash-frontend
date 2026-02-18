@@ -8,10 +8,11 @@ const path = require("path");
 const { addPDFHeader, addPDFFooter, LOGO_PATH } = require("../utils/pdfHeader");
 
 // Email configuration
+const emailPort = parseInt(process.env.EMAIL_PORT) || 587;
 const transporter = nodemailer.createTransport({
   host: process.env.EMAIL_HOST || "smtp.gmail.com",
-  port: process.env.EMAIL_PORT || 587,
-  secure: false,
+  port: emailPort,
+  secure: emailPort === 465, // true for 465, false for other ports (587 uses STARTTLS)
   auth: {
     user: process.env.EMAIL_USER,
     pass: process.env.EMAIL_PASSWORD,
