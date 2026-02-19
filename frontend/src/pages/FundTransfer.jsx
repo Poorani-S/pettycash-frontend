@@ -1,11 +1,14 @@
 import { useState, useEffect } from "react";
 import axios from "../utils/axios";
 import Layout from "../components/Layout";
+import Loader from "../components/Loader";
 import { toast } from "react-toastify";
 
 const FundTransfer = () => {
   const [transferType, setTransferType] = useState("bank");
   const [amount, setAmount] = useState("");
+  const [currency, setCurrency] = useState("INR");
+  const [exchangeRate, setExchangeRate] = useState("1");
   const [bankName, setBankName] = useState("");
   const [accountNumber, setAccountNumber] = useState("");
   const [transactionId, setTransactionId] = useState("");
@@ -18,10 +21,18 @@ const FundTransfer = () => {
   const [fundTransfers, setFundTransfers] = useState([]);
   const [allTransactions, setAllTransactions] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(true);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [stats, setStats] = useState(null);
   const [userBankDetails, setUserBankDetails] = useState(null);
+
+  // Transaction detail view state
+  const [selectedTransaction, setSelectedTransaction] = useState(null);
+
+  // Track source transaction for conversion (expense -> fund transfer)
+  const [sourceTransactionId, setSourceTransactionId] = useState(null);
+  const [sourceTransactionType, setSourceTransactionType] = useState(null);
 
   // Client/User states
   const [clients, setClients] = useState([]);
@@ -39,6 +50,16 @@ const FundTransfer = () => {
     clientId: null,
     clientName: "",
   });
+
+  // Inline bank-details editor (for selected user/client)
+  const [bankDetailsFormOpen, setBankDetailsFormOpen] = useState(false);
+  const [bankDetailsFormSaving, setBankDetailsFormSaving] = useState(false);
+  const [bankDetailsForm, setBankDetailsForm] = useState({
+    bankName: "",
+    accountNumber: "",
+    ifscCode: "",
+    accountHolderName: "",
+  });
   const [newClient, setNewClient] = useState({
     name: "",
     email: "",
@@ -54,11 +75,16 @@ const FundTransfer = () => {
   });
 
   useEffect(() => {
-    fetchCurrentBalance();
-    fetchAllTransactions();
-    fetchStats();
-    loadUserBankDetails();
-    fetchClients();
+    const initializeData = async () => {
+      setInitialLoading(true);
+      await fetchCurrentBalance();
+      await fetchAllTransactions();
+      await fetchStats();
+      await loadUserBankDetails();
+      await fetchClients();
+      setInitialLoading(false);
+    };
+    initializeData();
   }, []);
 
   const loadUserBankDetails = () => {
@@ -96,6 +122,7 @@ const FundTransfer = () => {
       setShowAddClientModal(true);
     } else {
       setSelectedClient(value);
+      setBankDetailsFormOpen(false);
       // Set selected client details and pre-fill bank details
       if (value) {
         const client = clients.find((c) => c._id === value);
@@ -103,14 +130,33 @@ const FundTransfer = () => {
         if (client?.bankDetails) {
           setBankName(client.bankDetails.bankName || "");
           setAccountNumber(client.bankDetails.accountNumber || "");
+          setBankDetailsForm({
+            bankName: client.bankDetails.bankName || "",
+            accountNumber: client.bankDetails.accountNumber || "",
+            ifscCode: client.bankDetails.ifscCode || "",
+            accountHolderName:
+              client.bankDetails.accountHolderName || client.name || "",
+          });
         } else {
           setBankName("");
           setAccountNumber("");
+          setBankDetailsForm({
+            bankName: "",
+            accountNumber: "",
+            ifscCode: "",
+            accountHolderName: client?.name || "",
+          });
         }
       } else {
         setSelectedClientDetails(null);
-        setBankName("");
+        setBankName(userBankDetails?.bankName || "");
         setAccountNumber("");
+        setBankDetailsForm({
+          bankName: "",
+          accountNumber: "",
+          ifscCode: "",
+          accountHolderName: "",
+        });
       }
     }
   };
@@ -125,6 +171,7 @@ const FundTransfer = () => {
       await fetchClients();
       setSelectedClient(addedClient._id);
       setSelectedClientDetails(addedClient);
+      setBankDetailsFormOpen(false);
       setShowAddClientModal(false);
       setNewClient({
         name: "",
@@ -143,12 +190,84 @@ const FundTransfer = () => {
       if (addedClient.bankDetails) {
         setBankName(addedClient.bankDetails.bankName || "");
         setAccountNumber(addedClient.bankDetails.accountNumber || "");
+        setBankDetailsForm({
+          bankName: addedClient.bankDetails.bankName || "",
+          accountNumber: addedClient.bankDetails.accountNumber || "",
+          ifscCode: addedClient.bankDetails.ifscCode || "",
+          accountHolderName:
+            addedClient.bankDetails.accountHolderName || addedClient.name || "",
+        });
+      } else {
+        setBankDetailsForm({
+          bankName: "",
+          accountNumber: "",
+          ifscCode: "",
+          accountHolderName: addedClient.name || "",
+        });
       }
       toast.success(`Client "${addedClient.name}" added successfully!`);
     } catch (err) {
       toast.error(err.response?.data?.message || "Failed to add client");
     } finally {
       setNewClientLoading(false);
+    }
+  };
+
+  const hasAnyBankDetails = (details) => {
+    if (!details) return false;
+    return [
+      details.bankName,
+      details.accountNumber,
+      details.ifscCode,
+      details.accountHolderName,
+    ].some((value) => (value || "").toString().trim().length > 0);
+  };
+
+  const handleSaveSelectedClientBankDetails = async (e) => {
+    e?.preventDefault?.();
+    if (!selectedClient) {
+      toast.error("Please select a user first");
+      return;
+    }
+
+    setBankDetailsFormSaving(true);
+    try {
+      const payload = {
+        bankDetails: {
+          bankName: bankDetailsForm.bankName?.trim() || "",
+          accountNumber: bankDetailsForm.accountNumber?.trim() || "",
+          ifscCode: bankDetailsForm.ifscCode?.trim() || "",
+          accountHolderName:
+            bankDetailsForm.accountHolderName?.trim() ||
+            selectedClientDetails?.name ||
+            "",
+        },
+      };
+
+      const response = await axios.put(`/clients/${selectedClient}`, payload);
+      const updatedClient = response.data.data;
+
+      setClients((prev) =>
+        prev.map((c) => (c._id === updatedClient._id ? updatedClient : c)),
+      );
+      setSelectedClientDetails(updatedClient);
+
+      setBankName(updatedClient.bankDetails?.bankName || "");
+      setAccountNumber(updatedClient.bankDetails?.accountNumber || "");
+      setBankDetailsForm({
+        bankName: updatedClient.bankDetails?.bankName || "",
+        accountNumber: updatedClient.bankDetails?.accountNumber || "",
+        ifscCode: updatedClient.bankDetails?.ifscCode || "",
+        accountHolderName:
+          updatedClient.bankDetails?.accountHolderName || updatedClient.name || "",
+      });
+
+      setBankDetailsFormOpen(false);
+      toast.success("Bank details saved successfully");
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Failed to save bank details");
+    } finally {
+      setBankDetailsFormSaving(false);
     }
   };
 
@@ -189,7 +308,6 @@ const FundTransfer = () => {
   const fetchFundTransfers = async () => {
     try {
       const response = await axios.get("/fund-transfers?limit=20");
-      console.log("Fund Transfers API Response:", response.data);
       setFundTransfers(response.data.data || []);
     } catch (err) {
       console.error("Error fetching fund transfers:", err);
@@ -280,6 +398,99 @@ const FundTransfer = () => {
     }
   };
 
+  const handlePopulateFromTransaction = (transaction) => {
+    // Set the selected transaction for detail view
+    setSelectedTransaction(transaction);
+
+    // Track source transaction for potential conversion
+    setSourceTransactionId(transaction._id);
+    setSourceTransactionType(transaction.transactionType);
+
+    // Populate form based on transaction type
+    if (transaction.transactionType === "fund_transfer") {
+      // Fund Transfer - populate with fund transfer details
+      setTransferType(
+        transaction.transferType === "Bank Transfer" ||
+          transaction.transferType === "bank"
+          ? "bank"
+          : "cash",
+      );
+      setAmount(transaction.amount?.toString() || "");
+      setCurrency(transaction.currency || "INR");
+      setExchangeRate(transaction.exchangeRate?.toString() || "1");
+      setPurpose(transaction.purpose || transaction.notes || "");
+
+      // Set recipient if available
+      if (transaction.recipientId?._id) {
+        setSelectedClient(transaction.recipientId._id);
+        setSelectedClientDetails(transaction.recipientId);
+      }
+
+      // Set bank details for bank transfers
+      if (
+        transaction.transferType === "bank" ||
+        transaction.transferType === "Bank Transfer"
+      ) {
+        setBankName(transaction.bankName || "");
+        setAccountNumber(transaction.accountNumber || "");
+        setTransactionId(transaction.transactionReference || "");
+      }
+    } else {
+      // Expense Transaction - convert to cash fund transfer
+      setTransferType("cash");
+      setAmount(
+        transaction.displayAmount?.toString() ||
+          transaction.postTaxAmount?.toString() ||
+          transaction.amount?.toString() ||
+          "",
+      );
+      setCurrency(transaction.currency || "INR");
+      setExchangeRate(transaction.exchangeRate?.toString() || "1");
+      setPurpose(
+        `Replenish: ${transaction.category?.name || "Expense"} - ${transaction.payeeClientName || ""}`,
+      );
+
+      // Auto-populate user from expense transaction
+      if (transaction.submittedBy?._id) {
+        setSelectedClient(transaction.submittedBy._id);
+        setSelectedClientDetails(transaction.submittedBy);
+      } else if (transaction.user?._id) {
+        setSelectedClient(transaction.user._id);
+        setSelectedClientDetails(transaction.user);
+      } else if (transaction.requestedBy?._id) {
+        setSelectedClient(transaction.requestedBy._id);
+        setSelectedClientDetails(transaction.requestedBy);
+      }
+
+      // Clear bank details for cash
+      setBankName("");
+      setAccountNumber("");
+      setTransactionId("");
+    }
+
+    // Reset other fields
+    setRemarks(
+      `Copied from transaction on ${formatDateTime(transaction.displayDate)}`,
+    );
+    setTransferDate(new Date().toISOString().split("T")[0]);
+
+    // Show success message
+    toast.info(
+      "✅ Form populated! Review and modify as needed before submitting.",
+      {
+        autoClose: 3000,
+      },
+    );
+
+    // Scroll to form
+    setTimeout(() => {
+      const formElement = document.querySelector("form");
+      if (formElement) {
+        formElement.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+    }, 100);
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -287,9 +498,29 @@ const FundTransfer = () => {
     setSuccess("");
 
     try {
+      // If converting from expense, delete it first and preserve timestamp
+      let conversionSuccess = false;
+      let originalTimestamp = null;
+
+      if (sourceTransactionType === "expense" && sourceTransactionId) {
+        try {
+          // Get the original transaction to preserve its timestamp
+          if (selectedTransaction) {
+            originalTimestamp = selectedTransaction.createdAt;
+          }
+          await axios.delete(`/transactions/${sourceTransactionId}`);
+          conversionSuccess = true;
+        } catch (deleteErr) {
+          console.error("Error deleting source expense:", deleteErr);
+          // Don't fail the whole operation if delete fails
+        }
+      }
+
       const data = {
         transferType,
         amount: parseFloat(amount),
+        currency,
+        exchangeRate: parseFloat(exchangeRate),
         transferDate,
         remarks,
         purpose,
@@ -302,28 +533,81 @@ const FundTransfer = () => {
         data.transactionId = transactionId;
       }
 
+      // If converting, preserve original timestamp for sorting
+      if (conversionSuccess && originalTimestamp) {
+        data.preserveTimestamp = originalTimestamp;
+      }
+
       const response = await axios.post("/fund-transfers", data);
 
+      // Immediately update UI if conversion was successful
+      if (conversionSuccess && sourceTransactionId) {
+        // Remove the expense from the list immediately
+        setAllTransactions((prevTransactions) =>
+          prevTransactions.filter((t) => t._id !== sourceTransactionId),
+        );
+
+        // Add a temporary placeholder for the new fund transfer
+        const newFundTransfer = {
+          _id: response.data.data._id,
+          transactionType: "fund_transfer",
+          amount: parseFloat(amount),
+          displayAmount: parseFloat(amount),
+          transferType: transferType,
+          purpose: purpose,
+          recipientId: selectedClientDetails,
+          initiatedBy: { name: response.data.data.initiatedBy?.name || "You" },
+          transferDate: transferDate,
+          displayDate: originalTimestamp || response.data.data.createdAt,
+          createdAt: originalTimestamp || response.data.data.createdAt,
+          isCredit: true,
+          bankName: transferType === "bank" ? bankName : undefined,
+          transactionReference:
+            transferType === "bank" ? transactionId : undefined,
+        };
+
+        // Add the new fund transfer and re-sort
+        setAllTransactions((prevTransactions) => {
+          const updated = [...prevTransactions, newFundTransfer];
+          return updated.sort(
+            (a, b) =>
+              new Date(b.displayDate || b.createdAt) -
+              new Date(a.displayDate || a.createdAt),
+          );
+        });
+      }
+
       setSuccess(
-        `Funds added successfully! New balance: ₹${response.data.balance.toLocaleString()}`,
+        conversionSuccess
+          ? "✅ Expense converted to fund transfer successfully!"
+          : "Funds added successfully!",
       );
       setCurrentBalance(response.data.balance);
 
       // Dispatch event to notify other components about the update
       window.dispatchEvent(
         new CustomEvent("transactionsUpdated", {
-          detail: { action: "fundTransferCreated" },
+          detail: {
+            action: conversionSuccess
+              ? "expenseConverted"
+              : "fundTransferCreated",
+          },
         }),
       );
 
       // Reset form - keep bank name pre-filled from user profile
       setAmount("");
+      setCurrency("INR");
+      setExchangeRate("1");
       setAccountNumber("");
       setTransactionId("");
       setRemarks("");
       setPurpose("");
       setSelectedClient("");
       setSelectedClientDetails(null);
+      setSelectedTransaction(null);
+      setSourceTransactionId(null);
+      setSourceTransactionType(null);
       setTransferDate(new Date().toISOString().split("T")[0]);
       // Keep bankName from user profile
       if (userBankDetails?.bankName) {
@@ -333,8 +617,18 @@ const FundTransfer = () => {
       }
 
       // Refresh data
-      fetchAllTransactions();
-      fetchStats();
+      await fetchAllTransactions();
+      await fetchStats();
+
+      // Ensure selected transaction is cleared for UI update
+      setSelectedTransaction(null);
+
+      // Show toast notification for conversion
+      if (conversionSuccess) {
+        toast.success("💰 Expense converted to fund transfer!", {
+          autoClose: 3000,
+        });
+      }
     } catch (err) {
       setError(err.response?.data?.message || "Failed to add funds");
     } finally {
@@ -364,8 +658,15 @@ const FundTransfer = () => {
 
   return (
     <Layout>
-      {/* Header Banner */}
-      <div className="bg-gradient-to-r from-[#023e8a] via-[#0077b6] to-[#00b4d8] rounded-xl sm:rounded-2xl p-4 sm:p-6 md:p-8 mb-6 sm:mb-8 text-white shadow-xl animate-fadeIn">
+      {/* Initial Loading Loader */}
+      {initialLoading && (
+        <Loader fullScreen={true} message="Loading fund transfer data..." size="large" />
+      )}
+
+      {!initialLoading && (
+        <>
+          {/* Header Banner */}
+          <div className="bg-gradient-to-r from-[#023e8a] via-[#0077b6] to-[#00b4d8] rounded-xl sm:rounded-2xl p-4 sm:p-6 md:p-8 mb-6 sm:mb-8 text-white shadow-xl animate-fadeIn">
         <div className="flex items-center gap-3 sm:gap-4">
           <div className="bg-white/20 backdrop-blur-sm rounded-xl sm:rounded-2xl p-3 sm:p-4">
             <svg
@@ -522,6 +823,73 @@ const FundTransfer = () => {
             Add Funds
           </h2>
 
+          {selectedTransaction && (
+            <div className="mb-4 p-4 bg-blue-50 border-l-4 border-blue-500 rounded-xl flex items-start justify-between gap-3 animate-slideInRight">
+              <div className="flex items-start gap-3">
+                <svg
+                  className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                  />
+                </svg>
+                <div>
+                  <p className="text-blue-800 font-semibold text-sm">
+                    {sourceTransactionType === "expense"
+                      ? "Converting expense to fund transfer"
+                      : "Form populated from selected transaction"}
+                  </p>
+                  <p className="text-blue-600 text-xs mt-1">
+                    {sourceTransactionType === "expense"
+                      ? "⚠️ The original expense will be replaced with this fund transfer"
+                      : "Review and modify the details below before submitting"}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedTransaction(null);
+                  setSourceTransactionId(null);
+                  setSourceTransactionType(null);
+                  setAmount("");
+                  setCurrency("INR");
+                  setExchangeRate("1");
+                  setPurpose("");
+                  setRemarks("");
+                  setSelectedClient("");
+                  setSelectedClientDetails(null);
+                  setBankName(userBankDetails?.bankName || "");
+                  setAccountNumber("");
+                  setTransactionId("");
+                  toast.info("Form cleared");
+                }}
+                className="text-blue-500 hover:text-blue-700 transition-colors flex-shrink-0"
+                title="Clear form"
+              >
+                <svg
+                  className="w-5 h-5"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M6 18L18 6M6 6l12 12"
+                  />
+                </svg>
+              </button>
+            </div>
+          )}
+
           {error && (
             <div className="bg-red-50 border-l-4 border-red-500 text-red-700 px-3 sm:px-4 py-2.5 sm:py-3 rounded-xl mb-3 sm:mb-4 flex items-center gap-2 sm:gap-3 animate-slideInRight">
               <svg
@@ -607,16 +975,20 @@ const FundTransfer = () => {
                   type="button"
                   onClick={(e) => {
                     e.preventDefault();
-                    const client = clients.find(
-                      (c) => c._id === selectedClient,
-                    );
-                    setDeleteClientModal({
-                      show: true,
-                      clientId: selectedClient,
-                      clientName: client?.name || "",
+                    setSelectedClient("");
+                    setSelectedClientDetails(null);
+                    setBankDetailsFormOpen(false);
+                    setBankName(userBankDetails?.bankName || "");
+                    setAccountNumber("");
+                    setBankDetailsForm({
+                      bankName: "",
+                      accountNumber: "",
+                      ifscCode: "",
+                      accountHolderName: "",
                     });
                   }}
-                  className="mt-3 w-full px-4 py-3 bg-red-500 text-white hover:bg-red-600 rounded-xl transition-all font-bold flex items-center justify-center gap-2"
+                  className="mt-3 w-full flex items-center justify-center gap-2 py-2 text-gray-600 hover:text-gray-800 hover:bg-gray-50 rounded-lg transition-all"
+                  title="Clear selected user"
                 >
                   <svg
                     className="w-5 h-5"
@@ -628,10 +1000,10 @@ const FundTransfer = () => {
                       strokeLinecap="round"
                       strokeLinejoin="round"
                       strokeWidth={2}
-                      d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                      d="M6 18L18 6M6 6l12 12"
                     />
                   </svg>
-                  Delete Selected User
+                  Clear selection
                 </button>
               )}
             </div>
@@ -706,6 +1078,54 @@ const FundTransfer = () => {
               </div>
             </div>
 
+            {/* Currency Selection */}
+            <div>
+              <label className="block text-sm font-bold text-gray-700 mb-3">
+                Currency *
+              </label>
+              <select
+                value={currency}
+                onChange={(e) => {
+                  setCurrency(e.target.value);
+                  setExchangeRate(
+                    e.target.value === "INR" ? "1" : exchangeRate,
+                  );
+                }}
+                className="w-full px-5 py-4 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-[#0077b6] focus:border-[#0077b6] transition-all duration-300 text-lg font-semibold hover:border-[#0077b6]"
+                required
+              >
+                <option value="INR">INR (₹)</option>
+                <option value="USD">USD ($)</option>
+                <option value="EUR">EUR (€)</option>
+                <option value="GBP">GBP (£)</option>
+                <option value="AED">AED (د.إ)</option>
+                <option value="SGD">SGD (S$)</option>
+                <option value="MYR">MYR (RM)</option>
+              </select>
+            </div>
+
+            {/* Exchange Rate (only for non-INR) */}
+            {currency !== "INR" && (
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-3">
+                  Exchange Rate (to INR) *
+                </label>
+                <input
+                  type="number"
+                  value={exchangeRate}
+                  onChange={(e) => setExchangeRate(e.target.value)}
+                  className="w-full px-5 py-4 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-[#0077b6] focus:border-[#0077b6] transition-all duration-300 text-lg font-semibold hover:border-[#0077b6]"
+                  placeholder="Exchange rate to INR"
+                  required
+                  min="0.01"
+                  step="0.01"
+                />
+                <p className="text-xs text-gray-500 mt-2">
+                  1 {currency} = {exchangeRate || "0"} INR
+                </p>
+              </div>
+            )}
+
             {/* Amount */}
             <div>
               <label className="block text-sm font-bold text-gray-700 mb-3 flex items-center gap-2">
@@ -722,7 +1142,7 @@ const FundTransfer = () => {
                     d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
                   />
                 </svg>
-                Amount (₹) *
+                Amount ({currency === "INR" ? "₹" : currency}) *
               </label>
               <input
                 type="number"
@@ -817,7 +1237,8 @@ const FundTransfer = () => {
                 </h3>
 
                 {/* Selected User's Bank Info (Read-only) */}
-                {selectedClientDetails?.bankDetails ? (
+                {hasAnyBankDetails(selectedClientDetails?.bankDetails) &&
+                !bankDetailsFormOpen ? (
                   <div className="grid grid-cols-2 gap-3 p-4 bg-white rounded-lg border-2 border-green-200">
                     <div>
                       <p className="text-xs text-gray-500 mb-1">Bank Name</p>
@@ -873,6 +1294,118 @@ const FundTransfer = () => {
                         ? "Selected user has no bank details. Please update their profile."
                         : "Please select a user to view bank details."}
                     </p>
+
+                    {selectedClient && (
+                      <div className="mt-4">
+                        {!bankDetailsFormOpen ? (
+                          <button
+                            type="button"
+                            onClick={() => setBankDetailsFormOpen(true)}
+                            className="w-full bg-white border border-yellow-300 text-yellow-800 font-semibold py-2.5 px-4 rounded-xl hover:bg-yellow-100 transition-all"
+                          >
+                            Add bank details here
+                          </button>
+                        ) : (
+                          <div className="mt-4 space-y-3">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                              <div>
+                                <label className="block text-xs font-semibold text-gray-700 mb-1">
+                                  Bank Name *
+                                </label>
+                                <input
+                                  type="text"
+                                  value={bankDetailsForm.bankName}
+                                  onChange={(e) =>
+                                    setBankDetailsForm((prev) => ({
+                                      ...prev,
+                                      bankName: e.target.value,
+                                    }))
+                                  }
+                                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-[#0077b6] focus:border-[#0077b6] transition-all duration-300 bg-white"
+                                  placeholder="e.g., HDFC Bank"
+                                  required
+                                />
+                              </div>
+
+                              <div>
+                                <label className="block text-xs font-semibold text-gray-700 mb-1">
+                                  Account Number *
+                                </label>
+                                <input
+                                  type="text"
+                                  value={bankDetailsForm.accountNumber}
+                                  onChange={(e) =>
+                                    setBankDetailsForm((prev) => ({
+                                      ...prev,
+                                      accountNumber: e.target.value,
+                                    }))
+                                  }
+                                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-[#0077b6] focus:border-[#0077b6] transition-all duration-300 bg-white"
+                                  placeholder="Account number"
+                                  required
+                                />
+                              </div>
+
+                              <div>
+                                <label className="block text-xs font-semibold text-gray-700 mb-1">
+                                  IFSC Code
+                                </label>
+                                <input
+                                  type="text"
+                                  value={bankDetailsForm.ifscCode}
+                                  onChange={(e) =>
+                                    setBankDetailsForm((prev) => ({
+                                      ...prev,
+                                      ifscCode: e.target.value,
+                                    }))
+                                  }
+                                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-[#0077b6] focus:border-[#0077b6] transition-all duration-300 bg-white"
+                                  placeholder="e.g., HDFC0001234"
+                                />
+                              </div>
+
+                              <div>
+                                <label className="block text-xs font-semibold text-gray-700 mb-1">
+                                  Account Holder
+                                </label>
+                                <input
+                                  type="text"
+                                  value={bankDetailsForm.accountHolderName}
+                                  onChange={(e) =>
+                                    setBankDetailsForm((prev) => ({
+                                      ...prev,
+                                      accountHolderName: e.target.value,
+                                    }))
+                                  }
+                                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-[#0077b6] focus:border-[#0077b6] transition-all duration-300 bg-white"
+                                  placeholder={selectedClientDetails?.name || "Account holder name"}
+                                />
+                              </div>
+                            </div>
+
+                            <div className="flex gap-3">
+                              <button
+                                type="button"
+                                onClick={handleSaveSelectedClientBankDetails}
+                                disabled={bankDetailsFormSaving}
+                                className="flex-1 bg-gradient-to-r from-[#023e8a] to-[#0077b6] hover:from-[#0077b6] hover:to-[#00b4d8] text-white font-bold py-2.5 px-4 rounded-xl transition-all duration-300 disabled:opacity-50"
+                              >
+                                {bankDetailsFormSaving
+                                  ? "Saving..."
+                                  : "Save bank details"}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setBankDetailsFormOpen(false)}
+                                className="px-4 py-2.5 rounded-xl border-2 border-gray-200 text-gray-700 font-semibold hover:bg-gray-50 transition-all"
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -952,35 +1485,40 @@ const FundTransfer = () => {
         </div>
 
         {/* Recent Transactions List */}
-        <div className="bg-white rounded-2xl shadow-soft p-8 animate-slideInRight">
+        <div className="bg-white rounded-2xl shadow-soft p-8 animate-slideInRight flex flex-col h-full">
           <div className="flex items-center justify-between mb-6">
-            <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-3">
-              <div className="bg-gradient-to-br from-purple-500 to-purple-600 text-white rounded-xl p-2">
-                <svg
-                  className="w-6 h-6"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
-                  />
-                </svg>
-              </div>
-              Recent Transactions
-            </h2>
+            <div>
+              <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-3">
+                <div className="bg-gradient-to-br from-purple-500 to-purple-600 text-white rounded-xl p-2">
+                  <svg
+                    className="w-6 h-6"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                    />
+                  </svg>
+                </div>
+                Recent Transactions
+              </h2>
+              <p className="text-sm text-gray-500 mt-2 ml-14">
+                💡 Click any transaction to populate the form above
+              </p>
+            </div>
 
             {allTransactions.length > 0 && (
               <button
                 onClick={handleClearHistory}
-                className="flex items-center gap-2 px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors font-semibold text-sm"
-                title="Clear all fund transfer history"
+                className="p-2 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg transition-all"
+                title="Clear all transaction history"
               >
                 <svg
-                  className="w-4 h-4"
+                  className="w-5 h-5"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -992,250 +1530,538 @@ const FundTransfer = () => {
                     d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
                   />
                 </svg>
-                Clear History
               </button>
             )}
           </div>
 
-          <div className="space-y-4 max-h-[700px] overflow-y-auto pr-2 custom-scrollbar">
-            {allTransactions.length === 0 ? (
-              <div className="text-center py-16">
-                <div className="bg-gray-100 rounded-full w-20 h-20 mx-auto mb-4 flex items-center justify-center">
-                  <svg
-                    className="w-10 h-10 text-gray-400"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1"
-                    />
-                  </svg>
-                </div>
-                <p className="text-gray-500 font-medium">No transactions yet</p>
-                <p className="text-gray-400 text-sm mt-1">
-                  Your transactions will appear here
-                </p>
-              </div>
-            ) : (
-              allTransactions.map((transaction, index) => (
-                <div
-                  key={transaction._id}
-                  className={`border-2 rounded-xl p-5 hover:shadow-lg transition-all duration-300 card-hover animate-slideInUp ${
-                    transaction.transactionType === "fund_transfer"
-                      ? "border-green-100 hover:border-green-400"
-                      : "border-red-100 hover:border-red-400"
-                  }`}
-                  style={{ animationDelay: `${index * 50}ms` }}
-                >
-                  {/* Header: Type Badge, Description & Amount */}
-                  <div className="flex justify-between items-start mb-4">
-                    <div className="flex items-center gap-3">
-                      <div
-                        className={`rounded-full p-3 ${
-                          transaction.transactionType === "fund_transfer"
-                            ? "bg-gradient-to-br from-green-100 to-green-200"
-                            : "bg-gradient-to-br from-red-100 to-red-200"
-                        }`}
+          {/* Two-column layout for transactions and details */}
+          <div className="flex gap-6 flex-1 min-h-0">
+            {/* Transactions List - Left Side */}
+            <div
+              className={`flex-1 min-h-0 ${selectedTransaction ? "max-w-xl" : "w-full"}`}
+            >
+              <div className="space-y-4 flex-1 min-h-0 overflow-y-auto pr-2 custom-scrollbar">
+                {allTransactions.length === 0 ? (
+                  <div className="text-center py-16">
+                    <div className="bg-gray-100 rounded-full w-20 h-20 mx-auto mb-4 flex items-center justify-center">
+                      <svg
+                        className="w-10 h-10 text-gray-400"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
                       >
-                        {transaction.transactionType === "fund_transfer" ? (
-                          <svg
-                            className="w-6 h-6 text-green-600"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M12 4v16m8-8H4"
-                            />
-                          </svg>
-                        ) : (
-                          <svg
-                            className="w-6 h-6 text-red-600"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M20 12H4"
-                            />
-                          </svg>
-                        )}
-                      </div>
-                      <div>
-                        <p className="font-bold text-gray-800 text-lg">
-                          {transaction.transactionType === "fund_transfer"
-                            ? transaction.recipientId?.name || "Fund Added"
-                            : transaction.description ||
-                              transaction.category?.name ||
-                              "Expense"}
-                        </p>
-                        <p className="text-xs text-gray-500">
-                          {formatDateTime(transaction.displayDate)}
-                        </p>
-                      </div>
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1"
+                        />
+                      </svg>
                     </div>
-                    <p
-                      className={`text-2xl font-bold ${
-                        transaction.transactionType === "fund_transfer"
-                          ? "text-green-600"
-                          : "text-red-600"
-                      }`}
-                    >
-                      {transaction.transactionType === "fund_transfer"
-                        ? "+"
-                        : "-"}
-                      ₹
-                      {(
-                        transaction.displayAmount ||
-                        transaction.postTaxAmount ||
-                        transaction.preTaxAmount ||
-                        transaction.amount ||
-                        0
-                      ).toLocaleString("en-IN")}
+                    <p className="text-gray-500 font-medium">
+                      No transactions yet
+                    </p>
+                    <p className="text-gray-400 text-sm mt-1">
+                      Your transactions will appear here
                     </p>
                   </div>
-
-                  {/* Transaction Type & Payment Method Badges */}
-                  <div className="flex items-center gap-3 mb-3 flex-wrap">
-                    <span
-                      className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-bold ${
+                ) : (
+                  allTransactions.map((transaction, index) => (
+                    <div
+                      key={transaction._id}
+                      onClick={() => handlePopulateFromTransaction(transaction)}
+                      className={`border-2 rounded-xl p-5 hover:shadow-lg transition-all duration-300 card-hover animate-slideInUp cursor-pointer ${
                         transaction.transactionType === "fund_transfer"
-                          ? "bg-gradient-to-r from-green-100 to-green-200 text-green-700"
-                          : "bg-gradient-to-r from-red-100 to-red-200 text-red-700"
-                      }`}
+                          ? "border-green-100 hover:border-green-400"
+                          : "border-red-100 hover:border-red-400"
+                      } ${selectedTransaction?._id === transaction._id ? "ring-2 ring-blue-500 border-blue-400" : ""}`}
+                      style={{ animationDelay: `${index * 50}ms` }}
+                      title="Click to populate form with this transaction's details"
                     >
-                      {transaction.transactionType === "fund_transfer"
-                        ? "Fund Transfer"
-                        : "Expense"}
-                    </span>
-
-                    {transaction.transactionType === "fund_transfer" && (
-                      <span
-                        className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-bold ${
-                          transaction.transferType === "Bank Transfer" ||
-                          transaction.transferType === "bank"
-                            ? "bg-gradient-to-r from-blue-100 to-blue-200 text-blue-700"
-                            : "bg-gradient-to-r from-emerald-100 to-emerald-200 text-emerald-700"
-                        }`}
-                      >
-                        {transaction.transferType === "Bank Transfer" ||
-                        transaction.transferType === "bank"
-                          ? "Bank Transfer"
-                          : "Cash"}
-                      </span>
-                    )}
-
-                    {transaction.transactionType === "expense" &&
-                      transaction.category && (
-                        <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-bold bg-gradient-to-r from-purple-100 to-purple-200 text-purple-700">
-                          {transaction.category?.name || "Uncategorized"}
-                        </span>
-                      )}
-
-                    {transaction.transactionType === "expense" &&
-                      transaction.status && (
-                        <span
-                          className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-bold ${
-                            transaction.status === "approved" ||
-                            transaction.status === "paid"
-                              ? "bg-gradient-to-r from-green-100 to-green-200 text-green-700"
-                              : transaction.status === "pending"
-                                ? "bg-gradient-to-r from-yellow-100 to-yellow-200 text-yellow-700"
-                                : transaction.status === "rejected"
-                                  ? "bg-gradient-to-r from-red-100 to-red-200 text-red-700"
-                                  : "bg-gradient-to-r from-gray-100 to-gray-200 text-gray-700"
+                      {/* Header: Type Badge, Description & Amount */}
+                      <div className="flex justify-between items-start mb-4">
+                        <div className="flex items-center gap-3">
+                          <div
+                            className={`rounded-full p-3 ${
+                              transaction.transactionType === "fund_transfer"
+                                ? "bg-gradient-to-br from-green-100 to-green-200"
+                                : "bg-gradient-to-br from-red-100 to-red-200"
+                            }`}
+                          >
+                            {transaction.transactionType === "fund_transfer" ? (
+                              <svg
+                                className="w-6 h-6 text-green-600"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M12 4v16m8-8H4"
+                                />
+                              </svg>
+                            ) : (
+                              <svg
+                                className="w-6 h-6 text-red-600"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M20 12H4"
+                                />
+                              </svg>
+                            )}
+                          </div>
+                          <div>
+                            <p className="font-bold text-gray-800 text-lg">
+                              {transaction.transactionType === "fund_transfer"
+                                ? transaction.recipientId?.name || "Fund Added"
+                                : transaction.description ||
+                                  transaction.category?.name ||
+                                  "Expense"}
+                            </p>
+                            <p className="text-xs text-gray-500">
+                              {formatDateTime(transaction.displayDate)}
+                            </p>
+                          </div>
+                        </div>
+                        <p
+                          className={`text-2xl font-bold ${
+                            transaction.transactionType === "fund_transfer"
+                              ? "text-green-600"
+                              : "text-red-600"
                           }`}
                         >
-                          {transaction.status.charAt(0).toUpperCase() +
-                            transaction.status.slice(1)}
-                        </span>
-                      )}
-                  </div>
+                          {transaction.transactionType === "fund_transfer"
+                            ? "+"
+                            : "-"}
+                          ₹
+                          {(
+                            transaction.displayAmount ||
+                            transaction.postTaxAmount ||
+                            transaction.preTaxAmount ||
+                            transaction.amount ||
+                            0
+                          ).toLocaleString("en-IN")}
+                        </p>
+                      </div>
 
-                  {/* Purpose/Description */}
-                  {(transaction.purpose || transaction.notes) && (
-                    <div className="bg-purple-50 rounded-xl p-3 mb-3">
-                      <div className="flex items-start gap-2">
-                        <svg
-                          className="w-5 h-5 text-purple-600 mt-0.5"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
+                      {/* Transaction Type & Payment Method Badges */}
+                      <div className="flex items-center gap-3 mb-3 flex-wrap">
+                        <span
+                          className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-bold ${
+                            transaction.transactionType === "fund_transfer"
+                              ? "bg-gradient-to-r from-green-100 to-green-200 text-green-700"
+                              : "bg-gradient-to-r from-red-100 to-red-200 text-red-700"
+                          }`}
                         >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
-                          />
-                        </svg>
-                        <div>
-                          <span className="text-xs font-semibold text-purple-700 block">
-                            {transaction.transactionType === "fund_transfer"
-                              ? "Purpose"
-                              : "Notes"}
+                          {transaction.transactionType === "fund_transfer"
+                            ? "Fund Transfer"
+                            : "Expense"}
+                        </span>
+
+                        {transaction.transactionType === "fund_transfer" && (
+                          <span
+                            className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-bold ${
+                              transaction.transferType === "Bank Transfer" ||
+                              transaction.transferType === "bank"
+                                ? "bg-gradient-to-r from-blue-100 to-blue-200 text-blue-700"
+                                : "bg-gradient-to-r from-emerald-100 to-emerald-200 text-emerald-700"
+                            }`}
+                          >
+                            {transaction.transferType === "Bank Transfer" ||
+                            transaction.transferType === "bank"
+                              ? "Bank Transfer"
+                              : "Cash"}
                           </span>
-                          <span className="text-sm text-purple-800">
-                            {transaction.purpose || transaction.notes}
-                          </span>
+                        )}
+
+                        {transaction.transactionType === "expense" &&
+                          transaction.category && (
+                            <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-bold bg-gradient-to-r from-purple-100 to-purple-200 text-purple-700">
+                              {transaction.category?.name || "Uncategorized"}
+                            </span>
+                          )}
+
+                        {transaction.transactionType === "expense" &&
+                          transaction.status && (
+                            <span
+                              className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-bold ${
+                                transaction.status === "approved" ||
+                                transaction.status === "paid"
+                                  ? "bg-gradient-to-r from-green-100 to-green-200 text-green-700"
+                                  : transaction.status === "pending"
+                                    ? "bg-gradient-to-r from-yellow-100 to-yellow-200 text-yellow-700"
+                                    : transaction.status === "rejected"
+                                      ? "bg-gradient-to-r from-red-100 to-red-200 text-red-700"
+                                      : "bg-gradient-to-r from-gray-100 to-gray-200 text-gray-700"
+                              }`}
+                            >
+                              {transaction.status.charAt(0).toUpperCase() +
+                                transaction.status.slice(1)}
+                            </span>
+                          )}
+                      </div>
+
+                      {/* Purpose/Description */}
+                      {(transaction.purpose || transaction.notes) && (
+                        <div className="bg-purple-50 rounded-xl p-3 mb-3">
+                          <div className="flex items-start gap-2">
+                            <svg
+                              className="w-5 h-5 text-purple-600 mt-0.5"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
+                              />
+                            </svg>
+                            <div>
+                              <span className="text-xs font-semibold text-purple-700 block">
+                                {transaction.transactionType === "fund_transfer"
+                                  ? "Purpose"
+                                  : "Notes"}
+                              </span>
+                              <span className="text-sm text-purple-800">
+                                {transaction.purpose || transaction.notes}
+                              </span>
+                            </div>
+                          </div>
                         </div>
+                      )}
+
+                      {/* Bank Details for Bank Transfer */}
+                      {transaction.transactionType === "fund_transfer" &&
+                        (transaction.transferType === "Bank Transfer" ||
+                          transaction.transferType === "bank") &&
+                        (transaction.bankName ||
+                          transaction.transactionReference) && (
+                          <div className="bg-gray-50 rounded-xl p-3 text-sm text-gray-700 space-y-1 mb-3">
+                            {transaction.bankName && (
+                              <p className="flex items-center gap-2">
+                                <span className="font-semibold">Bank:</span>{" "}
+                                {transaction.bankName}
+                              </p>
+                            )}
+                            {transaction.transactionReference && (
+                              <p className="flex items-center gap-2">
+                                <span className="font-semibold">Txn ID:</span>{" "}
+                                {transaction.transactionReference}
+                              </p>
+                            )}
+                          </div>
+                        )}
+
+                      {/* Footer: Added By */}
+                      <div className="pt-3 border-t border-gray-200 flex justify-between items-center">
+                        <p className="text-xs text-gray-500">
+                          {transaction.transactionType === "fund_transfer"
+                            ? "Added"
+                            : "Submitted"}{" "}
+                          by:{" "}
+                          <span className="font-medium text-gray-700">
+                            {transaction.addedBy?.name ||
+                              transaction.initiatedBy?.name ||
+                              transaction.submittedBy?.name ||
+                              transaction.user?.name ||
+                              "Unknown"}
+                          </span>
+                        </p>
+                        <p className="text-xs text-gray-400">
+                          {formatDateTime(transaction.createdAt)}
+                        </p>
                       </div>
                     </div>
-                  )}
+                  ))
+                )}
+              </div>
+            </div>
 
-                  {/* Bank Details for Bank Transfer */}
-                  {transaction.transactionType === "fund_transfer" &&
-                    (transaction.transferType === "Bank Transfer" ||
-                      transaction.transferType === "bank") &&
-                    (transaction.bankName ||
-                      transaction.transactionReference) && (
-                      <div className="bg-gray-50 rounded-xl p-3 text-sm text-gray-700 space-y-1 mb-3">
-                        {transaction.bankName && (
-                          <p className="flex items-center gap-2">
-                            <span className="font-semibold">Bank:</span>{" "}
-                            {transaction.bankName}
-                          </p>
-                        )}
-                        {transaction.transactionReference && (
-                          <p className="flex items-center gap-2">
-                            <span className="font-semibold">Txn ID:</span>{" "}
-                            {transaction.transactionReference}
-                          </p>
-                        )}
-                      </div>
-                    )}
+            {/* Transaction Detail View - Right Side */}
+            {selectedTransaction && (
+              <div className="w-96 border-l-2 border-gray-200 pl-6 min-h-0">
+                <div className="sticky top-4">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-xl font-bold text-gray-800">
+                      Transaction Details
+                    </h3>
+                    <button
+                      onClick={() => setSelectedTransaction(null)}
+                      className="text-gray-400 hover:text-gray-600 transition-colors"
+                      title="Close details"
+                    >
+                      <svg
+                        className="w-6 h-6"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M6 18L18 6M6 6l12 12"
+                        />
+                      </svg>
+                    </button>
+                  </div>
 
-                  {/* Footer: Added By */}
-                  <div className="pt-3 border-t border-gray-200 flex justify-between items-center">
-                    <p className="text-xs text-gray-500">
-                      {transaction.transactionType === "fund_transfer"
-                        ? "Added"
-                        : "Submitted"}{" "}
-                      by:{" "}
-                      <span className="font-medium text-gray-700">
-                        {transaction.addedBy?.name ||
-                          transaction.initiatedBy?.name ||
-                          transaction.submittedBy?.name ||
-                          transaction.user?.name ||
-                          "Unknown"}
+                  <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl p-6 space-y-4">
+                    {/* Transaction Type Badge */}
+                    <div className="flex items-center gap-2">
+                      <span
+                        className={`px-4 py-2 rounded-lg font-bold text-sm ${
+                          selectedTransaction.transactionType ===
+                          "fund_transfer"
+                            ? "bg-green-100 text-green-700"
+                            : "bg-red-100 text-red-700"
+                        }`}
+                      >
+                        {selectedTransaction.transactionType === "fund_transfer"
+                          ? "Fund Transfer"
+                          : "Expense"}
                       </span>
-                    </p>
-                    <p className="text-xs text-gray-400">
-                      {formatDateTime(transaction.createdAt)}
-                    </p>
+                      {selectedTransaction.status && (
+                        <span
+                          className={`px-3 py-1 rounded-lg font-semibold text-xs ${
+                            selectedTransaction.status === "approved"
+                              ? "bg-green-100 text-green-700"
+                              : selectedTransaction.status === "pending"
+                                ? "bg-yellow-100 text-yellow-700"
+                                : selectedTransaction.status === "rejected"
+                                  ? "bg-red-100 text-red-700"
+                                  : "bg-gray-100 text-gray-700"
+                          }`}
+                        >
+                          {selectedTransaction.status}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Amount */}
+                    <div className="bg-white rounded-lg p-4 border-2 border-gray-200">
+                      <p className="text-sm text-gray-600 mb-1">Amount</p>
+                      <p
+                        className={`text-3xl font-bold ${
+                          selectedTransaction.transactionType ===
+                          "fund_transfer"
+                            ? "text-green-600"
+                            : "text-red-600"
+                        }`}
+                      >
+                        {selectedTransaction.transactionType === "fund_transfer"
+                          ? "+"
+                          : "-"}
+                        ₹
+                        {(
+                          selectedTransaction.displayAmount ||
+                          selectedTransaction.postTaxAmount ||
+                          selectedTransaction.amount ||
+                          0
+                        ).toLocaleString("en-IN")}
+                      </p>
+                    </div>
+
+                    {/* Transaction Info */}
+                    <div className="space-y-3">
+                      {selectedTransaction.transactionType ===
+                      "fund_transfer" ? (
+                        <>
+                          <div>
+                            <p className="text-xs text-gray-500 mb-1">
+                              Transfer Type
+                            </p>
+                            <p className="font-semibold text-gray-800">
+                              {selectedTransaction.transferType === "bank" ||
+                              selectedTransaction.transferType ===
+                                "Bank Transfer"
+                                ? "Bank Transfer"
+                                : "Cash"}
+                            </p>
+                          </div>
+
+                          {selectedTransaction.recipientId?.name && (
+                            <div>
+                              <p className="text-xs text-gray-500 mb-1">
+                                Recipient
+                              </p>
+                              <p className="font-semibold text-gray-800">
+                                {selectedTransaction.recipientId.name}
+                              </p>
+                            </div>
+                          )}
+
+                          {(selectedTransaction.transferType === "bank" ||
+                            selectedTransaction.transferType ===
+                              "Bank Transfer") && (
+                            <>
+                              {selectedTransaction.bankName && (
+                                <div>
+                                  <p className="text-xs text-gray-500 mb-1">
+                                    Bank Name
+                                  </p>
+                                  <p className="font-semibold text-gray-800">
+                                    {selectedTransaction.bankName}
+                                  </p>
+                                </div>
+                              )}
+                              {selectedTransaction.transactionReference && (
+                                <div>
+                                  <p className="text-xs text-gray-500 mb-1">
+                                    Transaction Reference
+                                  </p>
+                                  <p className="font-mono text-sm text-gray-800">
+                                    {selectedTransaction.transactionReference}
+                                  </p>
+                                </div>
+                              )}
+                            </>
+                          )}
+
+                          {(selectedTransaction.purpose ||
+                            selectedTransaction.notes) && (
+                            <div>
+                              <p className="text-xs text-gray-500 mb-1">
+                                Purpose
+                              </p>
+                              <p className="text-gray-800">
+                                {selectedTransaction.purpose ||
+                                  selectedTransaction.notes}
+                              </p>
+                            </div>
+                          )}
+                        </>
+                      ) : (
+                        <>
+                          <div>
+                            <p className="text-xs text-gray-500 mb-1">
+                              Category
+                            </p>
+                            <p className="font-semibold text-gray-800">
+                              {selectedTransaction.category?.name ||
+                                "Uncategorized"}
+                            </p>
+                          </div>
+
+                          {selectedTransaction.description && (
+                            <div>
+                              <p className="text-xs text-gray-500 mb-1">
+                                Description
+                              </p>
+                              <p className="text-gray-800">
+                                {selectedTransaction.description}
+                              </p>
+                            </div>
+                          )}
+
+                          {selectedTransaction.purpose && (
+                            <div>
+                              <p className="text-xs text-gray-500 mb-1">
+                                Purpose
+                              </p>
+                              <p className="text-gray-800">
+                                {selectedTransaction.purpose}
+                              </p>
+                            </div>
+                          )}
+
+                          {selectedTransaction.payeeClientName && (
+                            <div>
+                              <p className="text-xs text-gray-500 mb-1">
+                                Payee
+                              </p>
+                              <p className="font-semibold text-gray-800">
+                                {selectedTransaction.payeeClientName}
+                              </p>
+                            </div>
+                          )}
+
+                          {selectedTransaction.paymentMethod && (
+                            <div>
+                              <p className="text-xs text-gray-500 mb-1">
+                                Payment Method
+                              </p>
+                              <p className="font-semibold text-gray-800 capitalize">
+                                {selectedTransaction.paymentMethod}
+                              </p>
+                            </div>
+                          )}
+
+                          {selectedTransaction.hasGSTInvoice && (
+                            <div className="bg-blue-50 rounded-lg p-3 border border-blue-200">
+                              <p className="text-xs text-blue-600 font-semibold mb-1">
+                                GST Details
+                              </p>
+                              <div className="grid grid-cols-2 gap-2 text-sm">
+                                {selectedTransaction.preTaxAmount && (
+                                  <div>
+                                    <p className="text-xs text-gray-600">
+                                      Pre-Tax
+                                    </p>
+                                    <p className="font-semibold">
+                                      ₹
+                                      {selectedTransaction.preTaxAmount.toLocaleString(
+                                        "en-IN",
+                                      )}
+                                    </p>
+                                  </div>
+                                )}
+                                {selectedTransaction.taxAmount && (
+                                  <div>
+                                    <p className="text-xs text-gray-600">Tax</p>
+                                    <p className="font-semibold">
+                                      ₹
+                                      {selectedTransaction.taxAmount.toLocaleString(
+                                        "en-IN",
+                                      )}
+                                    </p>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          )}
+                        </>
+                      )}
+
+                      <div className="border-t border-gray-300 pt-3 mt-3">
+                        <p className="text-xs text-gray-500 mb-1">
+                          {selectedTransaction.transactionType ===
+                          "fund_transfer"
+                            ? "Added By"
+                            : "Submitted By"}
+                        </p>
+                        <p className="font-semibold text-gray-800">
+                          {selectedTransaction.initiatedBy?.name ||
+                            selectedTransaction.submittedBy?.name ||
+                            selectedTransaction.requestedBy?.name ||
+                            selectedTransaction.user?.name ||
+                            "Unknown"}
+                        </p>
+                      </div>
+
+                      <div>
+                        <p className="text-xs text-gray-500 mb-1">Date</p>
+                        <p className="text-gray-800">
+                          {formatDateTime(
+                            selectedTransaction.displayDate ||
+                              selectedTransaction.createdAt,
+                          )}
+                        </p>
+                      </div>
+                    </div>
                   </div>
                 </div>
-              ))
+              </div>
             )}
           </div>
         </div>
@@ -1609,6 +2435,8 @@ const FundTransfer = () => {
             </div>
           </div>
         </div>
+      )}
+      </>
       )}
     </Layout>
   );

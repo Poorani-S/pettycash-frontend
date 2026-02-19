@@ -42,11 +42,16 @@ function Login() {
       const message =
         responseData?.message || "Login failed. Please try again.";
 
-      // Check if 3 failed attempts reached
+      // Check if 3 failed attempts reached - automatically redirect to OTP login
       if (responseData?.suggestOTP || responseData?.failedAttempts >= 3) {
         setShowOTPFallback(true);
         setFailedAttempts(responseData?.failedAttempts || 3);
-        setError(message + " You can now use OTP login below.");
+        setError(`${message} Redirecting to OTP login for security reasons...`);
+
+        // Automatically switch to OTP mode after showing message
+        setTimeout(() => {
+          switchToOTPMode();
+        }, 2000); // 2 second delay to show the error message
       } else {
         setError(message);
         setFailedAttempts(responseData?.failedAttempts || 0);
@@ -143,7 +148,9 @@ function Login() {
             {mode === "password"
               ? "Sign in to your account"
               : step === 1
-                ? "Reset via OTP"
+                ? failedAttempts >= 3
+                  ? "🔐 Secure Login via OTP"
+                  : "Reset via OTP"
                 : "Enter OTP"}
           </p>
         </div>
@@ -255,6 +262,33 @@ function Login() {
 
         {mode === "otp" && step === 1 && (
           <form onSubmit={handleRequestOTP} className="space-y-5">
+            {failedAttempts >= 3 && (
+              <div className="mb-4 p-4 bg-red-50 border-l-4 border-red-500 rounded-lg">
+                <div className="flex items-start">
+                  <svg
+                    className="w-5 h-5 text-red-500 mt-0.5 mr-2"
+                    fill="currentColor"
+                    viewBox="0 0 20 20"
+                  >
+                    <path
+                      fillRule="evenodd"
+                      d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                      clipRule="evenodd"
+                    />
+                  </svg>
+                  <div>
+                    <p className="text-red-800 text-sm font-semibold">
+                      Security Alert
+                    </p>
+                    <p className="text-red-700 text-xs mt-1">
+                      🚨 Your account had {failedAttempts} failed login
+                      attempts. Admin has been notified. Please login with OTP
+                      for security.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
             <div>
               <label className="block text-[#023e8a] font-semibold mb-2 text-sm">
                 Email Address

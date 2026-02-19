@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Layout from "../components/Layout";
+import Loader from "../components/Loader";
 import axios from "../utils/axios";
 
 function Dashboard() {
@@ -116,12 +117,7 @@ function Dashboard() {
 
   if (!user) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-[#023e8a] via-[#0077b6] to-[#0096c7] flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-16 h-16 border-4 border-white border-t-transparent rounded-full animate-spin mx-auto"></div>
-          <p className="text-white font-semibold mt-4 text-lg">Loading...</p>
-        </div>
-      </div>
+      <Loader fullScreen={true} message="Loading dashboard..." size="large" />
     );
   }
 
