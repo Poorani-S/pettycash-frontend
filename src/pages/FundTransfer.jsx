@@ -50,6 +50,16 @@ const FundTransfer = () => {
     clientId: null,
     clientName: "",
   });
+
+  // Inline bank-details editor (for selected user/client)
+  const [bankDetailsFormOpen, setBankDetailsFormOpen] = useState(false);
+  const [bankDetailsFormSaving, setBankDetailsFormSaving] = useState(false);
+  const [bankDetailsForm, setBankDetailsForm] = useState({
+    bankName: "",
+    accountNumber: "",
+    ifscCode: "",
+    accountHolderName: "",
+  });
   const [newClient, setNewClient] = useState({
     name: "",
     email: "",
@@ -112,6 +122,7 @@ const FundTransfer = () => {
       setShowAddClientModal(true);
     } else {
       setSelectedClient(value);
+      setBankDetailsFormOpen(false);
       // Set selected client details and pre-fill bank details
       if (value) {
         const client = clients.find((c) => c._id === value);
@@ -119,14 +130,33 @@ const FundTransfer = () => {
         if (client?.bankDetails) {
           setBankName(client.bankDetails.bankName || "");
           setAccountNumber(client.bankDetails.accountNumber || "");
+          setBankDetailsForm({
+            bankName: client.bankDetails.bankName || "",
+            accountNumber: client.bankDetails.accountNumber || "",
+            ifscCode: client.bankDetails.ifscCode || "",
+            accountHolderName:
+              client.bankDetails.accountHolderName || client.name || "",
+          });
         } else {
           setBankName("");
           setAccountNumber("");
+          setBankDetailsForm({
+            bankName: "",
+            accountNumber: "",
+            ifscCode: "",
+            accountHolderName: client?.name || "",
+          });
         }
       } else {
         setSelectedClientDetails(null);
-        setBankName("");
+        setBankName(userBankDetails?.bankName || "");
         setAccountNumber("");
+        setBankDetailsForm({
+          bankName: "",
+          accountNumber: "",
+          ifscCode: "",
+          accountHolderName: "",
+        });
       }
     }
   };
@@ -141,6 +171,7 @@ const FundTransfer = () => {
       await fetchClients();
       setSelectedClient(addedClient._id);
       setSelectedClientDetails(addedClient);
+      setBankDetailsFormOpen(false);
       setShowAddClientModal(false);
       setNewClient({
         name: "",
@@ -159,12 +190,84 @@ const FundTransfer = () => {
       if (addedClient.bankDetails) {
         setBankName(addedClient.bankDetails.bankName || "");
         setAccountNumber(addedClient.bankDetails.accountNumber || "");
+        setBankDetailsForm({
+          bankName: addedClient.bankDetails.bankName || "",
+          accountNumber: addedClient.bankDetails.accountNumber || "",
+          ifscCode: addedClient.bankDetails.ifscCode || "",
+          accountHolderName:
+            addedClient.bankDetails.accountHolderName || addedClient.name || "",
+        });
+      } else {
+        setBankDetailsForm({
+          bankName: "",
+          accountNumber: "",
+          ifscCode: "",
+          accountHolderName: addedClient.name || "",
+        });
       }
       toast.success(`Client "${addedClient.name}" added successfully!`);
     } catch (err) {
       toast.error(err.response?.data?.message || "Failed to add client");
     } finally {
       setNewClientLoading(false);
+    }
+  };
+
+  const hasAnyBankDetails = (details) => {
+    if (!details) return false;
+    return [
+      details.bankName,
+      details.accountNumber,
+      details.ifscCode,
+      details.accountHolderName,
+    ].some((value) => (value || "").toString().trim().length > 0);
+  };
+
+  const handleSaveSelectedClientBankDetails = async (e) => {
+    e?.preventDefault?.();
+    if (!selectedClient) {
+      toast.error("Please select a user first");
+      return;
+    }
+
+    setBankDetailsFormSaving(true);
+    try {
+      const payload = {
+        bankDetails: {
+          bankName: bankDetailsForm.bankName?.trim() || "",
+          accountNumber: bankDetailsForm.accountNumber?.trim() || "",
+          ifscCode: bankDetailsForm.ifscCode?.trim() || "",
+          accountHolderName:
+            bankDetailsForm.accountHolderName?.trim() ||
+            selectedClientDetails?.name ||
+            "",
+        },
+      };
+
+      const response = await axios.put(`/clients/${selectedClient}`, payload);
+      const updatedClient = response.data.data;
+
+      setClients((prev) =>
+        prev.map((c) => (c._id === updatedClient._id ? updatedClient : c)),
+      );
+      setSelectedClientDetails(updatedClient);
+
+      setBankName(updatedClient.bankDetails?.bankName || "");
+      setAccountNumber(updatedClient.bankDetails?.accountNumber || "");
+      setBankDetailsForm({
+        bankName: updatedClient.bankDetails?.bankName || "",
+        accountNumber: updatedClient.bankDetails?.accountNumber || "",
+        ifscCode: updatedClient.bankDetails?.ifscCode || "",
+        accountHolderName:
+          updatedClient.bankDetails?.accountHolderName || updatedClient.name || "",
+      });
+
+      setBankDetailsFormOpen(false);
+      toast.success("Bank details saved successfully");
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Failed to save bank details");
+    } finally {
+      setBankDetailsFormSaving(false);
     }
   };
 
@@ -872,17 +975,20 @@ const FundTransfer = () => {
                   type="button"
                   onClick={(e) => {
                     e.preventDefault();
-                    const client = clients.find(
-                      (c) => c._id === selectedClient,
-                    );
-                    setDeleteClientModal({
-                      show: true,
-                      clientId: selectedClient,
-                      clientName: client?.name || "",
+                    setSelectedClient("");
+                    setSelectedClientDetails(null);
+                    setBankDetailsFormOpen(false);
+                    setBankName(userBankDetails?.bankName || "");
+                    setAccountNumber("");
+                    setBankDetailsForm({
+                      bankName: "",
+                      accountNumber: "",
+                      ifscCode: "",
+                      accountHolderName: "",
                     });
                   }}
-                  className="mt-3 w-full flex justify-center py-2 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg transition-all"
-                  title="Delete selected user"
+                  className="mt-3 w-full flex items-center justify-center gap-2 py-2 text-gray-600 hover:text-gray-800 hover:bg-gray-50 rounded-lg transition-all"
+                  title="Clear selected user"
                 >
                   <svg
                     className="w-5 h-5"
@@ -894,9 +1000,10 @@ const FundTransfer = () => {
                       strokeLinecap="round"
                       strokeLinejoin="round"
                       strokeWidth={2}
-                      d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                      d="M6 18L18 6M6 6l12 12"
                     />
                   </svg>
+                  Clear selection
                 </button>
               )}
             </div>
@@ -1130,7 +1237,8 @@ const FundTransfer = () => {
                 </h3>
 
                 {/* Selected User's Bank Info (Read-only) */}
-                {selectedClientDetails?.bankDetails ? (
+                {hasAnyBankDetails(selectedClientDetails?.bankDetails) &&
+                !bankDetailsFormOpen ? (
                   <div className="grid grid-cols-2 gap-3 p-4 bg-white rounded-lg border-2 border-green-200">
                     <div>
                       <p className="text-xs text-gray-500 mb-1">Bank Name</p>
@@ -1186,6 +1294,118 @@ const FundTransfer = () => {
                         ? "Selected user has no bank details. Please update their profile."
                         : "Please select a user to view bank details."}
                     </p>
+
+                    {selectedClient && (
+                      <div className="mt-4">
+                        {!bankDetailsFormOpen ? (
+                          <button
+                            type="button"
+                            onClick={() => setBankDetailsFormOpen(true)}
+                            className="w-full bg-white border border-yellow-300 text-yellow-800 font-semibold py-2.5 px-4 rounded-xl hover:bg-yellow-100 transition-all"
+                          >
+                            Add bank details here
+                          </button>
+                        ) : (
+                          <div className="mt-4 space-y-3">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                              <div>
+                                <label className="block text-xs font-semibold text-gray-700 mb-1">
+                                  Bank Name *
+                                </label>
+                                <input
+                                  type="text"
+                                  value={bankDetailsForm.bankName}
+                                  onChange={(e) =>
+                                    setBankDetailsForm((prev) => ({
+                                      ...prev,
+                                      bankName: e.target.value,
+                                    }))
+                                  }
+                                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-[#0077b6] focus:border-[#0077b6] transition-all duration-300 bg-white"
+                                  placeholder="e.g., HDFC Bank"
+                                  required
+                                />
+                              </div>
+
+                              <div>
+                                <label className="block text-xs font-semibold text-gray-700 mb-1">
+                                  Account Number *
+                                </label>
+                                <input
+                                  type="text"
+                                  value={bankDetailsForm.accountNumber}
+                                  onChange={(e) =>
+                                    setBankDetailsForm((prev) => ({
+                                      ...prev,
+                                      accountNumber: e.target.value,
+                                    }))
+                                  }
+                                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-[#0077b6] focus:border-[#0077b6] transition-all duration-300 bg-white"
+                                  placeholder="Account number"
+                                  required
+                                />
+                              </div>
+
+                              <div>
+                                <label className="block text-xs font-semibold text-gray-700 mb-1">
+                                  IFSC Code
+                                </label>
+                                <input
+                                  type="text"
+                                  value={bankDetailsForm.ifscCode}
+                                  onChange={(e) =>
+                                    setBankDetailsForm((prev) => ({
+                                      ...prev,
+                                      ifscCode: e.target.value,
+                                    }))
+                                  }
+                                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-[#0077b6] focus:border-[#0077b6] transition-all duration-300 bg-white"
+                                  placeholder="e.g., HDFC0001234"
+                                />
+                              </div>
+
+                              <div>
+                                <label className="block text-xs font-semibold text-gray-700 mb-1">
+                                  Account Holder
+                                </label>
+                                <input
+                                  type="text"
+                                  value={bankDetailsForm.accountHolderName}
+                                  onChange={(e) =>
+                                    setBankDetailsForm((prev) => ({
+                                      ...prev,
+                                      accountHolderName: e.target.value,
+                                    }))
+                                  }
+                                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-[#0077b6] focus:border-[#0077b6] transition-all duration-300 bg-white"
+                                  placeholder={selectedClientDetails?.name || "Account holder name"}
+                                />
+                              </div>
+                            </div>
+
+                            <div className="flex gap-3">
+                              <button
+                                type="button"
+                                onClick={handleSaveSelectedClientBankDetails}
+                                disabled={bankDetailsFormSaving}
+                                className="flex-1 bg-gradient-to-r from-[#023e8a] to-[#0077b6] hover:from-[#0077b6] hover:to-[#00b4d8] text-white font-bold py-2.5 px-4 rounded-xl transition-all duration-300 disabled:opacity-50"
+                              >
+                                {bankDetailsFormSaving
+                                  ? "Saving..."
+                                  : "Save bank details"}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setBankDetailsFormOpen(false)}
+                                className="px-4 py-2.5 rounded-xl border-2 border-gray-200 text-gray-700 font-semibold hover:bg-gray-50 transition-all"
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -1265,7 +1485,7 @@ const FundTransfer = () => {
         </div>
 
         {/* Recent Transactions List */}
-        <div className="bg-white rounded-2xl shadow-soft p-8 animate-slideInRight">
+        <div className="bg-white rounded-2xl shadow-soft p-8 animate-slideInRight flex flex-col h-full">
           <div className="flex items-center justify-between mb-6">
             <div>
               <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-3">
@@ -1315,12 +1535,12 @@ const FundTransfer = () => {
           </div>
 
           {/* Two-column layout for transactions and details */}
-          <div className="flex gap-6">
+          <div className="flex gap-6 flex-1 min-h-0">
             {/* Transactions List - Left Side */}
             <div
-              className={`flex-1 ${selectedTransaction ? "max-w-xl" : "w-full"}`}
+              className={`flex-1 min-h-0 ${selectedTransaction ? "max-w-xl" : "w-full"}`}
             >
-              <div className="space-y-4 max-h-[700px] overflow-y-auto pr-2 custom-scrollbar">
+              <div className="space-y-4 flex-1 min-h-0 overflow-y-auto pr-2 custom-scrollbar">
                 {allTransactions.length === 0 ? (
                   <div className="text-center py-16">
                     <div className="bg-gray-100 rounded-full w-20 h-20 mx-auto mb-4 flex items-center justify-center">
@@ -1569,7 +1789,7 @@ const FundTransfer = () => {
 
             {/* Transaction Detail View - Right Side */}
             {selectedTransaction && (
-              <div className="w-96 border-l-2 border-gray-200 pl-6">
+              <div className="w-96 border-l-2 border-gray-200 pl-6 min-h-0">
                 <div className="sticky top-4">
                   <div className="flex items-center justify-between mb-4">
                     <h3 className="text-xl font-bold text-gray-800">
