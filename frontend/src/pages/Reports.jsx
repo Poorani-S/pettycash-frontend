@@ -159,11 +159,18 @@ const Reports = () => {
 
   // Auto-generate report when filters change
   useEffect(() => {
-    // Don't generate if user data is loaded
+    // Don't generate report until user data is loaded
     if (!user) return;
 
     // Only generate if not using custom date range, or if custom dates are set
     if (period !== "custom" || (customStartDate && customEndDate)) {
+      console.log("Generating report with filters:", {
+        reportType,
+        period,
+        selectedCategory,
+        selectedStatus,
+        selectedUser: selectedUser || "All Users",
+      });
       generateReport();
     }
   }, [
@@ -242,6 +249,7 @@ const Reports = () => {
       const activeUsers = fetchedUsers.filter((u) => u.isActive !== false);
       setUsers(activeUsers);
       setLastUsersFetch(new Date());
+      console.log("Fetched users for dropdown:", activeUsers.length);
     } catch (err) {
       console.error("Error fetching users:", err);
       // Silently fail - users dropdown will remain empty
@@ -253,6 +261,7 @@ const Reports = () => {
 
   const handleUserChange = (e) => {
     const value = e.target.value;
+    console.log("User dropdown changed to:", value);
     if (value === "add_new") {
       setShowAddUserModal(true);
       // Reset to previous value or empty
