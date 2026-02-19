@@ -114,6 +114,24 @@ const Transactions = () => {
     }
   };
 
+  const handleClearAll = async () => {
+    if (
+      !window.confirm(
+        "Are you sure you want to DELETE ALL transactions? This action cannot be undone.",
+      )
+    )
+      return;
+    try {
+      const res = await axios.delete("/transactions/clear-all");
+      setTransactions([]);
+      await fetchFinancialSummary();
+      window.dispatchEvent(new CustomEvent("transactionsUpdated"));
+      alert(res.data.message || "All transactions cleared.");
+    } catch (err) {
+      alert(err.response?.data?.message || "Failed to clear transactions.");
+    }
+  };
+
   const handleReject = async (id) => {
     const comment = window.prompt("Enter rejection reason:");
     if (!comment) return;
@@ -203,26 +221,51 @@ const Transactions = () => {
               View, manage and track all expense transactions
             </p>
           </div>
-          <button
-            onClick={() => navigate("/transactions/new")}
-            className="px-6 py-3 bg-gradient-to-r from-[#023e8a] to-[#0077b6] text-white rounded-xl hover:shadow-lg transition-all duration-300 flex items-center gap-2 group shadow-md"
-          >
-            <svg
-              className="w-5 h-5 group-hover:rotate-90 transition-transform duration-300"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
+          <div className="flex items-center gap-3">
+            {user?.role === "admin" && (
+              <button
+                onClick={handleClearAll}
+                className="px-5 py-3 bg-red-600 hover:bg-red-700 text-white rounded-xl transition-all duration-300 flex items-center gap-2 shadow-md font-semibold"
+              >
+                <svg
+                  className="w-5 h-5"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                  />
+                </svg>
+                <span className="hidden sm:inline">Clear All</span>
+              </button>
+            )}
+            <button
+              onClick={() => navigate("/transactions/new")}
+              className="px-6 py-3 bg-gradient-to-r from-[#023e8a] to-[#0077b6] text-white rounded-xl hover:shadow-lg transition-all duration-300 flex items-center gap-2 group shadow-md"
             >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M12 4v16m8-8H4"
-              />
-            </svg>
-            <span className="font-semibold hidden sm:inline">New Expense</span>
-            <span className="font-semibold sm:hidden">New</span>
-          </button>
+              <svg
+                className="w-5 h-5 group-hover:rotate-90 transition-transform duration-300"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 4v16m8-8H4"
+                />
+              </svg>
+              <span className="font-semibold hidden sm:inline">
+                New Expense
+              </span>
+              <span className="font-semibold sm:hidden">New</span>
+            </button>
+          </div>
         </div>
       </div>
 
