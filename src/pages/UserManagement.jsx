@@ -1225,18 +1225,10 @@ function UserManagement() {
                       className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-[#0077b6] focus:border-[#0077b6] transition-all"
                       required
                     >
-                      <option value="employee">
-                        👤 Employee (Submit expenses)
-                      </option>
-                      <option value="intern">🎓 Intern (Entry-level)</option>
-                      <option value="manager">
-                        📋 Manager (Manage team & approve)
-                      </option>
-                      <option value="approver">
-                        ✅ Approver (Review & approve)
-                      </option>
-                      <option value="admin">👑 Admin (Full access)</option>
-                      <option value="auditor">👁️ Auditor (Read-only)</option>
+                      <option value="admin">👑 Admin</option>
+                      <option value="manager">📋 Manager</option>
+                      <option value="employee">👤 Employee</option>
+                      <option value="intern">🎓 Intern</option>
                     </select>
                   </div>
 
