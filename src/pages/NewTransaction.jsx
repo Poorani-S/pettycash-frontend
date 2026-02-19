@@ -27,8 +27,6 @@ const NewTransaction = () => {
     payeeClientName: "",
     clientId: "",
     purpose: "",
-    currency: "INR",
-    exchangeRate: "1",
     preTaxAmount: "",
     taxAmount: "",
     postTaxAmount: "",
@@ -826,62 +824,6 @@ const NewTransaction = () => {
             </svg>
             Amount Breakup
           </h3>
-
-          {/* Currency Selection */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                Currency *
-              </label>
-              <select
-                name="currency"
-                value={formData.currency}
-                onChange={(e) => {
-                  setFormData({
-                    ...formData,
-                    currency: e.target.value,
-                    exchangeRate:
-                      e.target.value === "INR" ? "1" : formData.exchangeRate,
-                  });
-                }}
-                className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-[#0077b6] focus:border-[#0077b6] transition-all duration-300"
-                required
-              >
-                <option value="INR">INR (₹)</option>
-                <option value="USD">USD ($)</option>
-                <option value="EUR">EUR (€)</option>
-                <option value="GBP">GBP (£)</option>
-                <option value="AED">AED (د.إ)</option>
-                <option value="SGD">SGD (S$)</option>
-                <option value="MYR">MYR (RM)</option>
-              </select>
-            </div>
-
-            {formData.currency !== "INR" && (
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Exchange Rate (to INR) *
-                </label>
-                <input
-                  type="number"
-                  name="exchangeRate"
-                  value={formData.exchangeRate}
-                  onChange={(e) =>
-                    setFormData({ ...formData, exchangeRate: e.target.value })
-                  }
-                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-[#0077b6] focus:border-[#0077b6] transition-all duration-300"
-                  placeholder="Exchange rate to INR"
-                  step="0.01"
-                  min="0.01"
-                  required
-                />
-                <p className="text-xs text-gray-500 mt-1">
-                  1 {formData.currency} = {formData.exchangeRate || "0"} INR
-                </p>
-              </div>
-            )}
-          </div>
-
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-2">
