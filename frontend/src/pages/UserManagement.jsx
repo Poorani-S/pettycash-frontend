@@ -144,6 +144,14 @@ function UserManagement() {
             : null,
       };
 
+      // Never send empty-string managerId to backend (causes ObjectId cast errors)
+      if (
+        typeof payload.managerId === "string" &&
+        payload.managerId.trim() === ""
+      ) {
+        payload.managerId = null;
+      }
+
       if (editingUser) {
         await axios.put(`/users/${editingUser._id}`, payload);
         setSuccess("User updated successfully!");
@@ -171,6 +179,7 @@ function UserManagement() {
         phone: "",
         password: "",
         role: "employee",
+        managerId: "",
         department: "",
         employeeNumber: "",
         approvalLimit: "",
@@ -206,6 +215,7 @@ function UserManagement() {
       phone: user.phone,
       password: "", // Don't populate password field when editing
       role: user.role,
+      managerId: user.managerId?._id || user.managerId || "",
       department: user.department || "",
       employeeNumber: user.employeeNumber || "",
       approvalLimit: user.approvalLimit || "",
@@ -247,13 +257,62 @@ function UserManagement() {
     }
   };
 
+  const handleDeleteUser = async (userId, userName) => {
+    try {
+      await axios.delete(`/users/${userId}`);
+      toast.success(`User "${userName}" deleted successfully`);
+      fetchUsers();
+
+      // Trigger custom event to notify other components about user list changes
+      window.dispatchEvent(
+        new CustomEvent("usersUpdated", {
+          detail: { timestamp: Date.now() },
+        }),
+      );
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Failed to delete user");
+    }
+  };
+
+  const handleDeleteActivityLog = async (logId) => {
+    try {
+      await axios.delete(`/user-activity/${logId}`);
+      toast.success("Activity log entry deleted successfully");
+
+      // Remove the log from local state immediately
+      setActivityLogs((prevLogs) =>
+        prevLogs.filter((log) => log._id !== logId),
+      );
+    } catch (err) {
+      toast.error(
+        err.response?.data?.message || "Failed to delete activity log",
+      );
+    }
+  };
+
   const handleDeleteUserFromLog = async (userId, userName) => {
-    setConfirmModal({
-      show: true,
-      action: "delete",
-      data: { userId, userName },
-      message: `Are you sure you want to permanently delete ${userName}? This action cannot be undone.`,
-    });
+    if (
+      window.confirm(
+        `Are you sure you want to permanently delete user "${userName}"? This action cannot be undone.`,
+      )
+    ) {
+      await handleDeleteUser(userId, userName);
+    }
+  };
+
+  const handleClearAllActivityLogs = async () => {
+    try {
+      setLoadingActivity(true);
+      await axios.delete("/user-activity/clear-all");
+      toast.success("All activity logs cleared successfully");
+      setActivityLogs([]);
+    } catch (err) {
+      toast.error(
+        err.response?.data?.message || "Failed to clear activity logs",
+      );
+    } finally {
+      setLoadingActivity(false);
+    }
   };
 
   const executeDelete = async (userId, userName) => {
@@ -302,6 +361,7 @@ function UserManagement() {
       phone: "",
       password: "",
       role: "employee",
+      managerId: "",
       department: "",
       employeeNumber: "",
       approvalLimit: "",
@@ -577,30 +637,84 @@ function UserManagement() {
                 d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
               />
             </svg>
-            {loadingActivity ? "Exporting..." : "Download PDF"}
+            Export PDF
           </button>
         )}
       </div>
 
-      {/* Activity History Tab */}
+      {/* Activity History */}
       {activeTab === "history" && (
-        <div className="bg-white rounded-2xl shadow-soft p-6 animate-slideInUp">
-          <h2 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
-            <svg
-              className="w-6 h-6 text-[#0077b6]"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-              />
-            </svg>
-            User Management Activity Log
-          </h2>
+        <div className="bg-white rounded-2xl shadow-soft p-6">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+              <svg
+                className="w-6 h-6 text-[#0077b6]"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                />
+              </svg>
+              User Management Activity Log
+            </h2>
+            <div className="flex gap-2">
+              <button
+                onClick={exportActivityPDF}
+                disabled={loadingActivity || activityLogs.length === 0}
+                className="px-4 py-2 bg-[#0077b6] text-white rounded-lg hover:bg-[#023e8a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                title="Export PDF"
+              >
+                <svg
+                  className="w-4 h-4"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"
+                  />
+                </svg>
+                PDF
+              </button>
+              <button
+                onClick={() => {
+                  if (
+                    window.confirm(
+                      "Are you sure you want to clear all activity history? This action cannot be undone.",
+                    )
+                  ) {
+                    handleClearAllActivityLogs();
+                  }
+                }}
+                disabled={loadingActivity || activityLogs.length === 0}
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                title="Clear All History"
+              >
+                <svg
+                  className="w-4 h-4"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                  />
+                </svg>
+                Clear All
+              </button>
+            </div>
+          </div>
 
           {loadingActivity ? (
             <div className="text-center py-12">
@@ -678,16 +792,45 @@ function UserManagement() {
                         </button>
                       )}
                     </div>
-                    <span className="text-xs text-gray-500">
-                      {new Date(log.createdAt).toLocaleString("en-IN", {
-                        year: "numeric",
-                        month: "short",
-                        day: "numeric",
-                        hour: "2-digit",
-                        minute: "2-digit",
-                        hour12: true,
-                      })}
-                    </span>
+                    <div className="flex items-center gap-1">
+                      <span className="text-xs text-gray-500">
+                        {new Date(log.createdAt).toLocaleString("en-IN", {
+                          year: "numeric",
+                          month: "short",
+                          day: "numeric",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                          hour12: true,
+                        })}
+                      </span>
+                      <button
+                        onClick={() => {
+                          if (
+                            window.confirm(
+                              "Are you sure you want to delete this activity log entry? This action cannot be undone.",
+                            )
+                          ) {
+                            handleDeleteActivityLog(log._id);
+                          }
+                        }}
+                        className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                        title="Delete this activity log entry"
+                      >
+                        <svg
+                          className="w-4 h-4"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                          />
+                        </svg>
+                      </button>
+                    </div>
                   </div>
                   <p className="font-medium text-gray-800">
                     <span className="text-[#0077b6]">
@@ -936,6 +1079,33 @@ function UserManagement() {
                               </svg>
                             </button>
                           )}
+                          <button
+                            onClick={() => {
+                              if (
+                                window.confirm(
+                                  `Are you sure you want to permanently delete user "${user.name}"? This action cannot be undone.`,
+                                )
+                              ) {
+                                handleDeleteUser(user._id, user.name);
+                              }
+                            }}
+                            className="p-2 text-red-700 hover:bg-red-100 rounded-lg transition-colors"
+                            title="Delete User Permanently"
+                          >
+                            <svg
+                              className="w-5 h-5"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                              />
+                            </svg>
+                          </button>
                           {user.isActive && (
                             <button
                               onClick={() =>
@@ -1166,6 +1336,33 @@ function UserManagement() {
                       <p className="text-sm text-gray-500 mt-1">
                         {formData.role === "employee" ? "Employee" : "Intern"}{" "}
                         will report to this manager
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Reports To - Optional for managers (CEO/Admin) */}
+                  {formData.role === "manager" && (
+                    <div>
+                      <label className="block text-sm font-bold text-gray-700 mb-2">
+                        Reports To (Optional)
+                      </label>
+                      <select
+                        name="managerId"
+                        value={formData.managerId}
+                        onChange={handleInputChange}
+                        className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-[#0077b6] focus:border-[#0077b6] transition-all"
+                      >
+                        <option value="">Top Level (CEO)</option>
+                        {users
+                          .filter((u) => u.role === "admin" || u.role === "ceo")
+                          .map((leader) => (
+                            <option key={leader._id} value={leader._id}>
+                              {leader.name} ({leader.role.toUpperCase()})
+                            </option>
+                          ))}
+                      </select>
+                      <p className="text-sm text-gray-500 mt-1">
+                        Use this to make a manager report directly to CEO/Admin.
                       </p>
                     </div>
                   )}
