@@ -144,6 +144,11 @@ function UserManagement() {
             : null,
       };
 
+      // Never send empty-string managerId to backend (causes ObjectId cast errors)
+      if (typeof payload.managerId === "string" && payload.managerId.trim() === "") {
+        payload.managerId = null;
+      }
+
       if (editingUser) {
         await axios.put(`/users/${editingUser._id}`, payload);
         setSuccess("User updated successfully!");
@@ -171,6 +176,7 @@ function UserManagement() {
         phone: "",
         password: "",
         role: "employee",
+        managerId: "",
         department: "",
         employeeNumber: "",
         approvalLimit: "",
@@ -206,6 +212,7 @@ function UserManagement() {
       phone: user.phone,
       password: "", // Don't populate password field when editing
       role: user.role,
+      managerId: user.managerId?._id || user.managerId || "",
       department: user.department || "",
       employeeNumber: user.employeeNumber || "",
       approvalLimit: user.approvalLimit || "",
@@ -302,6 +309,7 @@ function UserManagement() {
       phone: "",
       password: "",
       role: "employee",
+      managerId: "",
       department: "",
       employeeNumber: "",
       approvalLimit: "",
@@ -1166,6 +1174,33 @@ function UserManagement() {
                       <p className="text-sm text-gray-500 mt-1">
                         {formData.role === "employee" ? "Employee" : "Intern"}{" "}
                         will report to this manager
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Reports To - Optional for managers (CEO/Admin) */}
+                  {formData.role === "manager" && (
+                    <div>
+                      <label className="block text-sm font-bold text-gray-700 mb-2">
+                        Reports To (Optional)
+                      </label>
+                      <select
+                        name="managerId"
+                        value={formData.managerId}
+                        onChange={handleInputChange}
+                        className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-[#0077b6] focus:border-[#0077b6] transition-all"
+                      >
+                        <option value="">Top Level (CEO)</option>
+                        {users
+                          .filter((u) => u.role === "admin" || u.role === "ceo")
+                          .map((leader) => (
+                            <option key={leader._id} value={leader._id}>
+                              {leader.name} ({leader.role.toUpperCase()})
+                            </option>
+                          ))}
+                      </select>
+                      <p className="text-sm text-gray-500 mt-1">
+                        Use this to make a manager report directly to CEO/Admin.
                       </p>
                     </div>
                   )}
