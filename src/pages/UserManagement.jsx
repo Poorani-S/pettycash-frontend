@@ -145,7 +145,10 @@ function UserManagement() {
       };
 
       // Never send empty-string managerId to backend (causes ObjectId cast errors)
-      if (typeof payload.managerId === "string" && payload.managerId.trim() === "") {
+      if (
+        typeof payload.managerId === "string" &&
+        payload.managerId.trim() === ""
+      ) {
         payload.managerId = null;
       }
 
@@ -251,6 +254,23 @@ function UserManagement() {
       );
     } catch (err) {
       toast.error(err.response?.data?.message || "Failed to deactivate user");
+    }
+  };
+
+  const handleDeleteUser = async (userId, userName) => {
+    try {
+      await axios.delete(`/users/${userId}`);
+      toast.success(`User "${userName}" deleted successfully`);
+      fetchUsers();
+
+      // Trigger custom event to notify other components about user list changes
+      window.dispatchEvent(
+        new CustomEvent("usersUpdated", {
+          detail: { timestamp: Date.now() },
+        }),
+      );
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Failed to delete user");
     }
   };
 
@@ -944,6 +964,33 @@ function UserManagement() {
                               </svg>
                             </button>
                           )}
+                          <button
+                            onClick={() => {
+                              if (
+                                window.confirm(
+                                  `Are you sure you want to permanently delete user "${user.name}"? This action cannot be undone.`,
+                                )
+                              ) {
+                                handleDeleteUser(user._id, user.name);
+                              }
+                            }}
+                            className="p-2 text-red-700 hover:bg-red-100 rounded-lg transition-colors"
+                            title="Delete User Permanently"
+                          >
+                            <svg
+                              className="w-5 h-5"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                              />
+                            </svg>
+                          </button>
                           {user.isActive && (
                             <button
                               onClick={() =>

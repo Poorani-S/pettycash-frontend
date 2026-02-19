@@ -848,61 +848,63 @@ const FundTransfer = () => {
                     </svg>
                     Select User *
                   </label>
-                  <select
-                    value={selectedClient}
-                    onChange={handleClientChange}
-                    className="w-full px-5 py-4 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-[#0077b6] focus:border-[#0077b6] transition-all duration-300 font-medium hover:border-[#0077b6]"
-                    required
-                  >
-                    <option value="">-- Select User --</option>
-                    {clients.map((client) => (
-                      <option key={client._id} value={client._id}>
-                        {client.name}{" "}
-                        {client.bankDetails?.bankName
-                          ? `(${client.bankDetails.bankName})`
-                          : ""}
-                      </option>
-                    ))}
-                    <option
-                      value="add_new"
-                      className="font-semibold text-[#0077b6]"
+                  <div className="flex gap-2 items-center">
+                    <select
+                      value={selectedClient}
+                      onChange={handleClientChange}
+                      className="flex-1 px-5 py-4 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-[#0077b6] focus:border-[#0077b6] transition-all duration-300 font-medium hover:border-[#0077b6]"
+                      required
                     >
-                      ➕ Add New User
-                    </option>
-                  </select>
-
-                  {selectedClient && selectedClient !== "add_new" && (
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        const client = clients.find(
-                          (c) => c._id === selectedClient,
-                        );
-                        setDeleteClientModal({
-                          show: true,
-                          clientId: selectedClient,
-                          clientName: client?.name || "",
-                        });
-                      }}
-                      className="mt-3 w-full flex justify-center py-2 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg transition-all"
-                      title="Delete selected user"
-                    >
-                      <svg
-                        className="w-5 h-5"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
+                      <option value="">-- Select User --</option>
+                      {clients.map((client) => (
+                        <option key={client._id} value={client._id}>
+                          {client.name}{" "}
+                          {client.bankDetails?.bankName
+                            ? `(${client.bankDetails.bankName})`
+                            : ""}
+                        </option>
+                      ))}
+                      <option
+                        value="add_new"
+                        className="font-semibold text-[#0077b6]"
                       >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                        />
-                      </svg>
-                    </button>
-                  )}
+                        ➕ Add New User
+                      </option>
+                    </select>
+
+                    {selectedClient && selectedClient !== "add_new" && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          const client = clients.find(
+                            (c) => c._id === selectedClient,
+                          );
+                          setDeleteClientModal({
+                            show: true,
+                            clientId: selectedClient,
+                            clientName: client?.name || "",
+                          });
+                        }}
+                        className="p-4 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-xl border-2 border-red-200 hover:border-red-300 transition-all"
+                        title="Delete selected user"
+                      >
+                        <svg
+                          className="w-5 h-5"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                          />
+                        </svg>
+                      </button>
+                    )}
+                  </div>
                 </div>
 
                 {/* Transfer Type */}
@@ -984,9 +986,22 @@ const FundTransfer = () => {
                     value={currency}
                     onChange={(e) => {
                       setCurrency(e.target.value);
-                      setExchangeRate(
-                        e.target.value === "INR" ? "1" : exchangeRate,
-                      );
+                      if (e.target.value === "INR") {
+                        setExchangeRate("1");
+                      } else {
+                        // Set default exchange rates for common currencies if no rate set
+                        if (!exchangeRate || exchangeRate === "1") {
+                          const defaultRates = {
+                            USD: "83.50",
+                            EUR: "90.25",
+                            GBP: "105.75",
+                            AED: "22.75",
+                            SGD: "62.40",
+                            MYR: "18.90",
+                          };
+                          setExchangeRate(defaultRates[e.target.value] || "1");
+                        }
+                      }
                     }}
                     className="w-full px-5 py-4 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-[#0077b6] focus:border-[#0077b6] transition-all duration-300 text-lg font-semibold hover:border-[#0077b6]"
                     required
@@ -1019,6 +1034,14 @@ const FundTransfer = () => {
                     />
                     <p className="text-xs text-gray-500 mt-2">
                       1 {currency} = {exchangeRate || "0"} INR
+                      {currency !== "INR" && amount && exchangeRate && (
+                        <span className="block text-[#0077b6] font-semibold mt-1">
+                          {amount} {currency} = ₹
+                          {(
+                            parseFloat(amount) * parseFloat(exchangeRate)
+                          ).toFixed(2)}
+                        </span>
+                      )}
                     </p>
                   </div>
                 )}
@@ -1051,6 +1074,17 @@ const FundTransfer = () => {
                     min="1"
                     step="0.01"
                   />
+                  {currency !== "INR" && amount && exchangeRate && (
+                    <div className="mt-2 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                      <p className="text-sm text-[#0077b6] font-semibold">
+                        💱 Conversion: {amount} {currency} = ₹
+                        {(
+                          parseFloat(amount) * parseFloat(exchangeRate)
+                        ).toFixed(2)}{" "}
+                        INR
+                      </p>
+                    </div>
+                  )}
                 </div>
 
                 {/* Purpose/Need of Amount */}
