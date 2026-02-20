@@ -210,6 +210,7 @@ const Transactions = () => {
 
   return (
     <Layout>
+      <div>
       {/* Page Header */}
       <div className="mb-6 md:mb-8 animate-slideInUp">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
@@ -813,6 +814,7 @@ const Transactions = () => {
           ))}
         </div>
       )}
+      </div>
     </Layout>
   );
 };
