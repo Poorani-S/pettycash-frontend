@@ -10,22 +10,71 @@ const CameraCapture = ({ onCapture, label = "Capture Receipt" }) => {
 
   const startCamera = async () => {
     try {
+      // Check if getUserMedia is supported
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        toast.error(
+          "Camera not supported in this browser. Please use a modern browser or upload a file instead.",
+        );
+        return;
+      }
+
+      // Check if we're on HTTPS or localhost
+      const isSecureContext = window.isSecureContext;
+      if (!isSecureContext && window.location.hostname !== "localhost") {
+        toast.warning(
+          "Camera requires HTTPS. Please use file upload instead or access via HTTPS.",
+        );
+      }
+
+      console.log("Requesting camera access...");
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: "environment" }, // Use back camera on mobile
+        video: {
+          facingMode: "environment", // Use back camera on mobile
+          width: { ideal: 1920 },
+          height: { ideal: 1080 },
+        },
         audio: false,
       });
 
+      console.log("Camera access granted!");
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
-        videoRef.current.play();
+        await videoRef.current.play();
         streamRef.current = stream;
         setCameraActive(true);
+        toast.success("Camera ready! Position your document and tap Capture.");
       }
     } catch (error) {
-      console.error("Error accessing camera:", error);
-      toast.error(
-        "Unable to access camera. Please check permissions or use file upload.",
-      );
+      console.error("Camera error:", error);
+      let errorMessage = "Unable to access camera. ";
+
+      if (
+        error.name === "NotAllowedError" ||
+        error.name === "PermissionDeniedError"
+      ) {
+        errorMessage +=
+          "Please allow camera permissions in your browser settings.";
+      } else if (
+        error.name === "NotFoundError" ||
+        error.name === "DevicesNotFoundError"
+      ) {
+        errorMessage +=
+          "No camera device found. Please use file upload instead.";
+      } else if (
+        error.name === "NotReadableError" ||
+        error.name === "TrackStartError"
+      ) {
+        errorMessage += "Camera is already in use by another application.";
+      } else if (error.name === "OverconstrainedError") {
+        errorMessage += "Camera doesn't support the required settings.";
+      } else if (error.name === "SecurityError") {
+        errorMessage +=
+          "Camera access blocked for security reasons. Use HTTPS or file upload.";
+      } else {
+        errorMessage += error.message || "Please use file upload instead.";
+      }
+
+      toast.error(errorMessage);
     }
   };
 
@@ -41,27 +90,61 @@ const CameraCapture = ({ onCapture, label = "Capture Receipt" }) => {
     const video = videoRef.current;
     const canvas = canvasRef.current;
 
-    if (video && canvas) {
+    if (!video || !canvas) {
+      toast.error("Camera not ready. Please try again.");
+      return;
+    }
+
+    if (video.videoWidth === 0 || video.videoHeight === 0) {
+      toast.error("Please wait for camera to initialize completely.");
+      return;
+    }
+
+    try {
       const context = canvas.getContext("2d");
       canvas.width = video.videoWidth;
       canvas.height = video.videoHeight;
       context.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-      canvas.toBlob((blob) => {
-        const file = new File([blob], `receipt-${Date.now()}.jpg`, {
-          type: "image/jpeg",
-        });
+      canvas.toBlob(
+        (blob) => {
+          if (!blob) {
+            toast.error("Failed to capture image. Please try again.");
+            return;
+          }
 
-        // Create preview URL
-        const imageUrl = URL.createObjectURL(blob);
-        setCapturedImage(imageUrl);
+          const file = new File([blob], `receipt-${Date.now()}.jpg`, {
+            type: "image/jpeg",
+            lastModified: Date.now(),
+          });
 
-        // Pass file to parent component
-        onCapture(file);
+          // Create preview URL
+          const imageUrl = URL.createObjectURL(blob);
+          setCapturedImage(imageUrl);
 
-        // Stop camera
-        stopCamera();
-      }, "image/jpeg");
+          console.log("Image captured:", {
+            size: blob.size,
+            type: blob.type,
+            width: canvas.width,
+            height: canvas.height,
+          });
+
+          // Pass file to parent component
+          onCapture(file);
+
+          // Stop camera
+          stopCamera();
+
+          toast.success("Image captured successfully!");
+        },
+        "image/jpeg",
+        0.95,
+      ); // 95% quality
+    } catch (error) {
+      console.error("Capture error:", error);
+      toast.error(
+        "Failed to capture image. Please try again or use file upload.",
+      );
     }
   };
 
