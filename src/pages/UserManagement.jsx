@@ -153,11 +153,20 @@ function UserManagement() {
       }
 
       if (editingUser) {
-        await axios.put(`/users/${editingUser._id}`, payload);
+        const response = await axios.put(`/users/${editingUser._id}`, payload);
         setSuccess("User updated successfully!");
         toast.success("User updated successfully!");
 
-        // Close modal and reset form first
+        // Update the user in the state immediately with the response data
+        if (response.data.data) {
+          setUsers((prevUsers) =>
+            prevUsers.map((u) =>
+              u._id === editingUser._id ? response.data.data : u,
+            ),
+          );
+        }
+
+        // Close modal and reset form
         setShowAddModal(false);
         setEditingUser(null);
         setFormData({
@@ -180,7 +189,7 @@ function UserManagement() {
           address: "",
         });
 
-        // Fetch updated user list
+        // Fetch updated user list to ensure consistency
         await fetchUsers();
       } else {
         const response = await axios.post("/users", payload);
