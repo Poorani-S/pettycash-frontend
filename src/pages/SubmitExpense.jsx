@@ -365,7 +365,7 @@ const SubmitExpense = () => {
                       onChange={handleChange}
                       className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       placeholder="Amount before tax"
-                      step="0.01"
+                      step="any"
                       required={formData.hasGSTInvoice}
                     />
                   </div>
@@ -381,7 +381,7 @@ const SubmitExpense = () => {
                       onChange={handleChange}
                       className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       placeholder="GST amount"
-                      step="0.01"
+                      step="any"
                       required={formData.hasGSTInvoice}
                     />
                   </div>
@@ -397,7 +397,7 @@ const SubmitExpense = () => {
                       onChange={handleChange}
                       className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       placeholder="Total amount"
-                      step="0.01"
+                      step="any"
                       required={formData.hasGSTInvoice}
                     />
                   </div>
@@ -428,7 +428,7 @@ const SubmitExpense = () => {
                     onChange={handleChange}
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     placeholder="Enter amount"
-                    step="0.01"
+                    step="any"
                     required={!formData.hasGSTInvoice}
                   />
                 </div>
