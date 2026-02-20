@@ -155,6 +155,33 @@ function UserManagement() {
       if (editingUser) {
         await axios.put(`/users/${editingUser._id}`, payload);
         setSuccess("User updated successfully!");
+        toast.success("User updated successfully!");
+
+        // Close modal and reset form first
+        setShowAddModal(false);
+        setEditingUser(null);
+        setFormData({
+          name: "",
+          email: "",
+          phone: "",
+          password: "",
+          role: "employee",
+          managerId: "",
+          department: "",
+          employeeNumber: "",
+          approvalLimit: "",
+          bankDetails: {
+            bankName: "",
+            accountNumber: "",
+            ifscCode: "",
+            branchName: "",
+          },
+          panNumber: "",
+          address: "",
+        });
+
+        // Fetch updated user list
+        await fetchUsers();
       } else {
         const response = await axios.post("/users", payload);
         if (response.data.emailSent) {
@@ -162,37 +189,40 @@ function UserManagement() {
             "User created successfully! Invitation email sent to " +
               formData.email,
           );
+          toast.success(`User created! Invitation sent to ${formData.email}`);
         } else {
           setError(
             "User created but invitation email failed to send. Error: " +
               (response.data.emailError || "Check email configuration"),
           );
           setSuccess("User account created for " + formData.email);
+          toast.warning("User created but email failed to send");
         }
-      }
 
-      setShowAddModal(false);
-      setEditingUser(null);
-      setFormData({
-        name: "",
-        email: "",
-        phone: "",
-        password: "",
-        role: "employee",
-        managerId: "",
-        department: "",
-        employeeNumber: "",
-        approvalLimit: "",
-        bankDetails: {
-          bankName: "",
-          accountNumber: "",
-          ifscCode: "",
-          branchName: "",
-        },
-        panNumber: "",
-        address: "",
-      });
-      fetchUsers();
+        setShowAddModal(false);
+        setEditingUser(null);
+        setFormData({
+          name: "",
+          email: "",
+          phone: "",
+          password: "",
+          role: "employee",
+          managerId: "",
+          department: "",
+          employeeNumber: "",
+          approvalLimit: "",
+          bankDetails: {
+            bankName: "",
+            accountNumber: "",
+            ifscCode: "",
+            branchName: "",
+          },
+          panNumber: "",
+          address: "",
+        });
+
+        await fetchUsers();
+      }
 
       // Trigger custom event to notify other components about user list changes
       window.dispatchEvent(
