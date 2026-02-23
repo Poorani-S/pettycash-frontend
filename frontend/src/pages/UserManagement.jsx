@@ -136,13 +136,21 @@ function UserManagement() {
     setSuccess("");
 
     try {
-      const payload = {
+      let payload = {
         ...formData,
         approvalLimit:
           formData.role === "approver" && formData.approvalLimit
             ? Number(formData.approvalLimit)
             : null,
       };
+
+      // Remove password field from payload if it's empty (for updates)
+      if (
+        editingUser &&
+        (!payload.password || payload.password.trim() === "")
+      ) {
+        delete payload.password;
+      }
 
       // Never send empty-string managerId to backend (causes ObjectId cast errors)
       if (

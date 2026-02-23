@@ -191,6 +191,7 @@ const CameraCapture = ({ onCapture, label = "Capture Receipt" }) => {
             className="w-full rounded-xl shadow-lg"
             autoPlay
             playsInline
+            muted
           />
           <canvas ref={canvasRef} className="hidden" />
 
