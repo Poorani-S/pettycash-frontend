@@ -298,10 +298,6 @@ const Transactions = () => {
           className="bg-white rounded-xl sm:rounded-2xl p-4 sm:p-6 shadow-soft hover:shadow-hover transition-all duration-300 card-hover animate-slideInLeft border-l-4 border-yellow-500"
           style={{ animationDelay: "50ms" }}
         >
-        <div
-          className="bg-white rounded-xl sm:rounded-2xl p-4 sm:p-6 shadow-soft hover:shadow-hover transition-all duration-300 card-hover animate-slideInLeft border-l-4 border-yellow-500"
-          style={{ animationDelay: "50ms" }}
-        >
           <div className="flex items-center justify-between mb-2">
             <svg
               className="w-8 h-8 sm:w-10 sm:h-10 text-yellow-500"
