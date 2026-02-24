@@ -19,6 +19,11 @@ function UserManagement() {
     data: null,
     message: "",
   });
+  // Password view/reset modal
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [selectedUserForPassword, setSelectedUserForPassword] = useState(null);
+  const [generatedPassword, setGeneratedPassword] = useState(null);
+  const [passwordLoading, setPasswordLoading] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -335,6 +340,43 @@ function UserManagement() {
         err.response?.data?.message || "Failed to delete activity log",
       );
     }
+  };
+
+  // Handle reset/regenerate user password
+  const handleResetPassword = async (userId, userName) => {
+    setPasswordLoading(true);
+    try {
+      const response = await axios.post(`/users/${userId}/reset-password`);
+      if (response.data.success) {
+        setGeneratedPassword(response.data.data.newPassword);
+        setSelectedUserForPassword({
+          userId,
+          name: userName,
+          email: response.data.data.email,
+        });
+        setShowPasswordModal(true);
+        toast.success(
+          `New password generated for ${userName}. Copy it from the modal.`,
+        );
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Failed to reset password");
+    } finally {
+      setPasswordLoading(false);
+    }
+  };
+
+  // Copy password to clipboard
+  const copyPasswordToClipboard = () => {
+    navigator.clipboard.writeText(generatedPassword);
+    toast.success("Password copied to clipboard!");
+  };
+
+  // Close password modal
+  const closePasswordModal = () => {
+    setShowPasswordModal(false);
+    setGeneratedPassword(null);
+    setSelectedUserForPassword(null);
   };
 
   const handleDeleteUserFromLog = async (userId, userName) => {
@@ -1104,33 +1146,59 @@ function UserManagement() {
                               </svg>
                             </button>
                           )}
-                          <button
-                            onClick={() => {
-                              if (
-                                window.confirm(
-                                  `Are you sure you want to permanently delete user "${user.name}"? This action cannot be undone.`,
-                                )
-                              ) {
-                                handleDeleteUser(user._id, user.name);
+                          {user.isActive && (
+                            <button
+                              onClick={() =>
+                                handleResetPassword(user._id, user.name)
                               }
-                            }}
-                            className="p-2 text-red-700 hover:bg-red-100 rounded-lg transition-colors"
-                            title="Delete User Permanently"
-                          >
-                            <svg
-                              className="w-5 h-5"
-                              fill="none"
-                              stroke="currentColor"
-                              viewBox="0 0 24 24"
+                              className="p-2 text-orange-600 hover:bg-orange-50 rounded-lg transition-colors"
+                              title="Reset/Regenerate Password"
+                              disabled={passwordLoading}
                             >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                              />
-                            </svg>
-                          </button>
+                              <svg
+                                className="w-5 h-5"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.97 5.95m-2.02-2.02a7 7 0 10-9.92-9.92m9.92 9.92L21 21"
+                                />
+                              </svg>
+                            </button>
+                          )}
+                          {user.isActive && (
+                            <button
+                              onClick={() => {
+                                if (
+                                  window.confirm(
+                                    `Are you sure you want to permanently delete user "${user.name}"? This action cannot be undone.`,
+                                  )
+                                ) {
+                                  handleDeleteUser(user._id, user.name);
+                                }
+                              }}
+                              className="p-2 text-red-700 hover:bg-red-100 rounded-lg transition-colors"
+                              title="Delete User Permanently"
+                            >
+                              <svg
+                                className="w-5 h-5"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                                />
+                              </svg>
+                            </button>
+                          )}
                           {user.isActive && (
                             <button
                               onClick={() =>
@@ -1649,6 +1717,100 @@ function UserManagement() {
                 className="flex-1 px-4 py-2.5 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-xl hover:shadow-lg transition-all font-semibold"
               >
                 Confirm
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Password Reset Modal */}
+      {showPasswordModal && selectedUserForPassword && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 animate-slideInUp">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center">
+                <svg
+                  className="w-6 h-6 text-blue-600"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
+                  />
+                </svg>
+              </div>
+              <h3 className="text-xl font-bold text-gray-900">
+                🔐 New Password Generated
+              </h3>
+            </div>
+
+            <div className="space-y-4 mb-6">
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">
+                  User
+                </label>
+                <p className="text-gray-900 font-semibold">
+                  {selectedUserForPassword.name}
+                </p>
+                <p className="text-gray-500 text-sm">
+                  {selectedUserForPassword.email}
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Temporary Password
+                </label>
+                <div className="flex gap-2">
+                  <div className="flex-1 px-4 py-3 bg-gray-100 rounded-lg border-2 border-gray-300 font-mono text-gray-900 break-all select-all">
+                    {generatedPassword}
+                  </div>
+                  <button
+                    onClick={copyPasswordToClipboard}
+                    className="px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all font-semibold flex items-center gap-2"
+                    title="Copy password to clipboard"
+                  >
+                    <svg
+                      className="w-5 h-5"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
+                      />
+                    </svg>
+                    Copy
+                  </button>
+                </div>
+              </div>
+
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                <p className="text-sm text-blue-900">
+                  <strong>ℹ️ Instructions:</strong>
+                </p>
+                <ul className="text-sm text-blue-900 ml-4 mt-2 space-y-1">
+                  <li>• Copy the password above</li>
+                  <li>• Share securely with the user</li>
+                  <li>• User should change it on first login</li>
+                  <li>• This password was hashed and cannot be viewed again</li>
+                </ul>
+              </div>
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={closePasswordModal}
+                className="flex-1 px-4 py-2.5 border-2 border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 transition-all font-semibold"
+              >
+                Close
               </button>
             </div>
           </div>

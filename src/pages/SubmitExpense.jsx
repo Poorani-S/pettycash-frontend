@@ -77,15 +77,35 @@ const SubmitExpense = () => {
   };
 
   const handleInvoiceCameraCapture = (file) => {
+    if (!file) {
+      toast.error("Failed to capture image. Please try again.");
+      return;
+    }
+    console.log("Invoice camera captured:", {
+      size: file.size,
+      type: file.type,
+      name: file.name,
+    });
     setInvoiceImage(file);
     setInvoicePreview(URL.createObjectURL(file));
     setShowInvoiceCamera(false);
+    toast.success("Invoice image added successfully!");
   };
 
   const handlePaymentCameraCapture = (file) => {
+    if (!file) {
+      toast.error("Failed to capture image. Please try again.");
+      return;
+    }
+    console.log("Payment camera captured:", {
+      size: file.size,
+      type: file.type,
+      name: file.name,
+    });
     setPaymentProofImage(file);
     setPaymentPreview(URL.createObjectURL(file));
     setShowPaymentCamera(false);
+    toast.success("Payment proof image added successfully!");
   };
 
   const handleSubmit = async (e) => {
@@ -106,17 +126,32 @@ const SubmitExpense = () => {
 
       // Append files
       if (invoiceImage) {
+        console.log("Appending invoice image:", {
+          size: invoiceImage.size,
+          type: invoiceImage.type,
+        });
         data.append("invoiceImage", invoiceImage);
-      }
-      if (paymentProofImage) {
-        data.append("paymentProofImage", paymentProofImage);
+      } else {
+        console.warn("No invoice image provided");
       }
 
-      const response = await axios.post("/transactions", data, {
-        headers: {
-          "Content-Type": "multipart/form-data",
-        },
-      });
+      if (paymentProofImage) {
+        console.log("Appending payment proof image:", {
+          size: paymentProofImage.size,
+          type: paymentProofImage.type,
+        });
+        data.append("paymentProofImage", paymentProofImage);
+      } else {
+        console.warn("No payment proof image provided");
+      }
+
+      // Log FormData contents
+      console.log(
+        "FormData being submitted with keys:",
+        Array.from(data.keys()),
+      );
+
+      const response = await axios.post("/transactions", data);
 
       setSuccess("Expense submitted successfully!");
       // Dispatch event to notify other components (Reports page) about the new transaction
@@ -129,6 +164,7 @@ const SubmitExpense = () => {
         navigate("/transactions");
       }, 2000);
     } catch (err) {
+      console.error("Submit error:", err);
       setError(err.response?.data?.message || "Failed to submit expense");
     } finally {
       setLoading(false);

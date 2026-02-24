@@ -210,8 +210,11 @@ const NewTransaction = () => {
   const handleCameraCapture = (file, type) => {
     if (type === "invoice") {
       setInvoiceFile(file);
+      // Switch back to file-view so the captured file name is shown
+      setUseCamera((prev) => ({ ...prev, invoice: false }));
     } else {
       setPaymentProofFile(file);
+      setUseCamera((prev) => ({ ...prev, payment: false }));
     }
   };
 
@@ -296,11 +299,7 @@ const NewTransaction = () => {
         formDataToSend.append("paymentProofImage", paymentProofFile);
       }
 
-      const response = await axios.post("/transactions", formDataToSend, {
-        headers: {
-          "Content-Type": "multipart/form-data",
-        },
-      });
+      const response = await axios.post("/transactions", formDataToSend);
 
       setSuccess(
         "Transaction submitted successfully! Waiting for admin approval.",
